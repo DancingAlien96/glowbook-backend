@@ -1,0 +1,72 @@
+# Glowbook — backend stack (MySQL + API)
+# El frontend se corre localmente con `npm run dev` desde glowbook-frontend.
+#
+# Uso:
+#   docker compose up --build              # build + arranca mysql + api
+#   docker compose up -d mysql             # solo la base de datos
+#   SEED_ON_BOOT=true docker compose up    # siembra datos demo (Maison Rosé)
+#   docker compose logs -f api             # ver logs del API
+#   docker compose down                    # bajar todo (mantiene el volumen)
+#   docker compose down -v                 # bajar y borrar la base de datos
+#
+# IMPORTANT: cambia los JWT secrets antes de publicar a producción.
+
+services:
+  mysql:
+    image: mysql:8.4
+    container_name: glowbook-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: glowbook_root
+      MYSQL_DATABASE: glowbook
+      MYSQL_USER: glowbook
+      MYSQL_PASSWORD: glowbook
+    ports:
+      - "3306:3306"
+    volumes:
+      - glowbook_mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-pglowbook_root"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+    networks:
+      - glowbook
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: glowbook-api:latest
+    container_name: glowbook-api
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: 4000
+      # CORS: dominios desde los que el frontend hará peticiones.
+      CORS_ORIGIN: "http://localhost:3000"
+      DATABASE_URL: "mysql://glowbook:glowbook@mysql:3306/glowbook"
+      JWT_ACCESS_SECRET: "change-me-prod-access-secret-must-be-at-least-32-chars"
+      JWT_REFRESH_SECRET: "change-me-prod-refresh-secret-must-be-at-least-32-chars"
+      JWT_ACCESS_TTL: "15m"
+      JWT_REFRESH_TTL: "30d"
+      UPLOAD_DIR: "/app/uploads"
+      MAX_UPLOAD_MB: "5"
+      SEED_ON_BOOT: "${SEED_ON_BOOT:-false}"
+    ports:
+      - "4000:4000"
+    volumes:
+      - glowbook_uploads:/app/uploads
+    depends_on:
+      mysql:
+        condition: service_healthy
+    networks:
+      - glowbook
+
+volumes:
+  glowbook_mysql_data:
+  glowbook_uploads:
+
+networks:
+  glowbook:
+    driver: bridge

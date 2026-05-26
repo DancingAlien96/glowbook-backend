@@ -1,0 +1,274 @@
+// Glowbook — Prisma schema
+// MySQL via docker-compose. Run: npm run db:up && npm run prisma:migrate
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+// =========================
+// Identity
+// =========================
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  name         String
+  role         UserRole @default(OWNER)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  ownedSalon Salon? @relation("OwnerSalon")
+  refreshTokens RefreshToken[]
+}
+
+enum UserRole {
+  OWNER
+  STAFF
+  ADMIN
+}
+
+model RefreshToken {
+  id        String   @id @default(cuid())
+  userId    String
+  tokenHash String   @unique @db.VarChar(255)
+  userAgent String?  @db.VarChar(255)
+  ipAddress String?  @db.VarChar(64)
+  expiresAt DateTime
+  revokedAt DateTime?
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+// =========================
+// Tenant: Salon
+// =========================
+model Salon {
+  id               String   @id @default(cuid())
+  ownerId          String   @unique
+  name             String
+  slug             String   @unique
+  description      String?  @db.Text
+  timezone         String   @default("America/Guayaquil")
+  currency         String   @default("USD") @db.VarChar(8)
+  depositMode      DepositMode @default(PERCENTAGE)
+  depositPercent   Int      @default(30) // 0-100
+  approvalMode     ApprovalMode @default(MANUAL)
+  bankDetails      String?  @db.Text // free text shown in transfer step
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  owner       User           @relation("OwnerSalon", fields: [ownerId], references: [id], onDelete: Cascade)
+  services    Service[]
+  stylists    Stylist[]
+  businessHours BusinessHour[]
+  blockedSlots  BlockedSlot[]
+  clients       Client[]
+  appointments  Appointment[]
+  payments      Payment[]
+}
+
+enum DepositMode {
+  NONE
+  PERCENTAGE
+  FULL
+}
+
+enum ApprovalMode {
+  MANUAL
+  AUTOMATIC
+}
+
+// =========================
+// Catalog
+// =========================
+model Service {
+  id            String  @id @default(cuid())
+  salonId       String
+  name          String
+  description   String? @db.Text
+  category      String? @db.VarChar(64)
+  durationMin   Int
+  priceCents    Int
+  active        Boolean @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  salon        Salon              @relation(fields: [salonId], references: [id], onDelete: Cascade)
+  stylists     StylistService[]
+  appointments Appointment[]
+
+  @@index([salonId, active])
+}
+
+model Stylist {
+  id        String  @id @default(cuid())
+  salonId   String
+  name      String
+  role      String? @db.VarChar(128)
+  active    Boolean @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  salon        Salon            @relation(fields: [salonId], references: [id], onDelete: Cascade)
+  services     StylistService[]
+  appointments Appointment[]
+  blockedSlots BlockedSlot[]
+
+  @@index([salonId, active])
+}
+
+model StylistService {
+  stylistId String
+  serviceId String
+
+  stylist Stylist @relation(fields: [stylistId], references: [id], onDelete: Cascade)
+  service Service @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+
+  @@id([stylistId, serviceId])
+}
+
+// =========================
+// Availability
+// =========================
+model BusinessHour {
+  id        String @id @default(cuid())
+  salonId   String
+  dayOfWeek Int    // 0=Sun ... 6=Sat
+  openMin   Int    // minutes from 00:00
+  closeMin  Int
+
+  salon Salon @relation(fields: [salonId], references: [id], onDelete: Cascade)
+
+  @@unique([salonId, dayOfWeek])
+  @@index([salonId])
+}
+
+model BlockedSlot {
+  id        String   @id @default(cuid())
+  salonId   String
+  stylistId String?  // null = blocks the whole salon
+  startAt   DateTime
+  endAt     DateTime
+  reason    String?  @db.VarChar(255)
+  createdAt DateTime @default(now())
+
+  salon   Salon    @relation(fields: [salonId], references: [id], onDelete: Cascade)
+  stylist Stylist? @relation(fields: [stylistId], references: [id], onDelete: SetNull)
+
+  @@index([salonId, startAt])
+  @@index([stylistId, startAt])
+}
+
+// =========================
+// Clients
+// =========================
+model Client {
+  id        String  @id @default(cuid())
+  salonId   String
+  name      String
+  email     String?
+  phone     String?
+  notes     String? @db.Text
+  tag       ClientTag @default(NEW)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  salon        Salon         @relation(fields: [salonId], references: [id], onDelete: Cascade)
+  appointments Appointment[]
+
+  @@unique([salonId, email])
+  @@index([salonId])
+}
+
+enum ClientTag {
+  NEW
+  RETURNING
+  VIP
+}
+
+// =========================
+// Appointments
+// =========================
+model Appointment {
+  id           String   @id @default(cuid())
+  salonId      String
+  serviceId    String
+  stylistId    String?
+  clientId     String
+  startAt      DateTime
+  endAt        DateTime
+  durationMin  Int
+  priceCents   Int
+  depositCents Int      @default(0)
+  status       AppointmentStatus @default(PENDING)
+  notes        String?  @db.Text
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  salon   Salon    @relation(fields: [salonId], references: [id], onDelete: Cascade)
+  service Service  @relation(fields: [serviceId], references: [id])
+  stylist Stylist? @relation(fields: [stylistId], references: [id], onDelete: SetNull)
+  client  Client   @relation(fields: [clientId], references: [id])
+  payments Payment[]
+
+  @@index([salonId, startAt])
+  @@index([stylistId, startAt])
+  @@index([clientId])
+  @@index([status])
+}
+
+enum AppointmentStatus {
+  PENDING
+  CONFIRMED
+  COMPLETED
+  CANCELLED
+  NO_SHOW
+}
+
+// =========================
+// Payments
+// =========================
+model Payment {
+  id            String   @id @default(cuid())
+  salonId       String
+  appointmentId String
+  amountCents   Int
+  method        PaymentMethod
+  status        PaymentStatus @default(PENDING_REVIEW)
+  receiptUrl    String?  @db.VarChar(500)
+  receiptName   String?  @db.VarChar(255)
+  reference     String?  @db.VarChar(128)
+  reviewedAt    DateTime?
+  reviewedBy    String?  // userId
+  rejectedReason String? @db.VarChar(255)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  salon       Salon       @relation(fields: [salonId], references: [id], onDelete: Cascade)
+  appointment Appointment @relation(fields: [appointmentId], references: [id], onDelete: Cascade)
+
+  @@index([salonId, status])
+  @@index([appointmentId])
+}
+
+enum PaymentMethod {
+  TRANSFER
+  CARD
+  CASH
+  WALLET
+}
+
+enum PaymentStatus {
+  PENDING_REVIEW
+  APPROVED
+  REJECTED
+  REFUNDED
+}
