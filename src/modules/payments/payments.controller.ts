@@ -1,41 +1,16 @@
 import { Router } from "express";
-import path from "node:path";
-import fs from "node:fs";
-import multer from "multer";
-import { nanoid } from "nanoid";
 import { z } from "zod";
 import { asyncHandler } from "../../lib/asyncHandler.js";
 import { validate } from "../../middleware/validate.js";
-import { requireAuth, requireSalon } from "../../middleware/auth.js";
+import { requireAuth, requireRole, requireSalon } from "../../middleware/auth.js";
 import { prisma } from "../../lib/prisma.js";
-import { env } from "../../config/env.js";
-import { BadRequest, NotFound } from "../../lib/errors.js";
-
-const uploadDir = path.resolve(env.UPLOAD_DIR, "receipts");
-fs.mkdirSync(uploadDir, { recursive: true });
-
-const storage = multer.diskStorage({
-  destination: (_req, _file, cb) => cb(null, uploadDir),
-  filename: (_req, file, cb) => {
-    const ext = path.extname(file.originalname).slice(0, 10);
-    cb(null, `${Date.now()}-${nanoid(10)}${ext}`);
-  },
-});
-
-const upload = multer({
-  storage,
-  limits: { fileSize: env.MAX_UPLOAD_MB * 1024 * 1024 },
-  fileFilter: (_req, file, cb) => {
-    if (!/^(image\/.+|application\/pdf)$/.test(file.mimetype)) {
-      cb(new Error("Only images and PDFs are allowed"));
-      return;
-    }
-    cb(null, true);
-  },
-});
+import { NotFound } from "../../lib/errors.js";
+import { sendEmail } from "../../lib/email.js";
+import { receiptArrivedTemplate } from "../../lib/emails/receiptArrived.js";
+import { bookingConfirmedTemplate } from "../../lib/emails/bookingConfirmed.js";
 
 export const paymentsRoutes = Router();
-paymentsRoutes.use(requireAuth, requireSalon);
+paymentsRoutes.use(requireAuth, requireRole("OWNER"), requireSalon);
 
 paymentsRoutes.get(
   "/",
@@ -80,6 +55,31 @@ paymentsRoutes.post(
       });
       return p;
     });
+
+    // Notify the client her cita está confirmada.
+    const appt = await prisma.appointment.findUnique({
+      where: { id: payment.appointmentId },
+      select: {
+        startAt: true, durationMin: true,
+        salon: { select: { name: true, slug: true } },
+        service: { select: { name: true } },
+        stylist: { select: { name: true } },
+        client: { select: { name: true, email: true } },
+      },
+    });
+    if (appt?.client.email) {
+      const tpl = bookingConfirmedTemplate({
+        clientName: appt.client.name,
+        salonName: appt.salon.name,
+        salonSlug: appt.salon.slug,
+        serviceName: appt.service.name,
+        stylistName: appt.stylist?.name ?? null,
+        startAt: appt.startAt,
+        durationMin: appt.durationMin,
+      });
+      sendEmail({ to: appt.client.email, subject: tpl.subject, html: tpl.html, text: tpl.text });
+    }
+
     res.json({ payment: updated });
   })
 );
@@ -106,24 +106,37 @@ paymentsRoutes.post(
   })
 );
 
-// Public receipt upload, used by booking flow. Auth is the appointment id (issued at create time).
+// =====================================================================
+// Public receipt registration.
+// The booking flow uploads the file directly to UploadThing from the browser;
+// when UploadThing returns the URL, the frontend calls this endpoint with the
+// URL so we can persist a Payment record linked to the appointment.
+// =====================================================================
 export const publicPaymentsRoutes = Router();
+
+const receiptSchema = z.object({
+  url: z.string().url().max(500),
+  name: z.string().max(255).optional(),
+  reference: z.string().max(128).optional(),
+});
 
 publicPaymentsRoutes.post(
   "/:appointmentId/receipt",
-  upload.single("receipt"),
+  validate(receiptSchema),
   asyncHandler(async (req, res) => {
     const appointmentId = req.params.appointmentId!;
-    const file = req.file;
-    if (!file) throw BadRequest("Receipt file is required");
+    const body = req.body as z.infer<typeof receiptSchema>;
 
     const appointment = await prisma.appointment.findUnique({
       where: { id: appointmentId },
-      select: { id: true, salonId: true, depositCents: true },
+      select: {
+        id: true, salonId: true, depositCents: true, startAt: true,
+        salon: { select: { name: true, currency: true } },
+        service: { select: { name: true } },
+        client: { select: { name: true } },
+      },
     });
     if (!appointment) throw NotFound("Appointment not found");
-
-    const receiptUrl = `/uploads/receipts/${file.filename}`;
 
     const payment = await prisma.payment.create({
       data: {
@@ -132,10 +145,29 @@ publicPaymentsRoutes.post(
         amountCents: appointment.depositCents,
         method: "TRANSFER",
         status: "PENDING_REVIEW",
-        receiptUrl,
-        receiptName: file.originalname.slice(0, 255),
+        receiptUrl: body.url,
+        receiptName: body.name ?? null,
+        reference: body.reference ?? null,
       },
     });
+
+    // Notify every OWNER of the salon that a new receipt is waiting for review.
+    const owners = await prisma.user.findMany({
+      where: { salonId: appointment.salonId, role: "OWNER" },
+      select: { email: true, name: true },
+    });
+    for (const owner of owners) {
+      const tpl = receiptArrivedTemplate({
+        ownerName: owner.name,
+        salonName: appointment.salon.name,
+        clientName: appointment.client.name,
+        serviceName: appointment.service.name,
+        startAt: appointment.startAt,
+        amountCents: appointment.depositCents,
+        currency: appointment.salon.currency,
+      });
+      sendEmail({ to: owner.email, subject: tpl.subject, html: tpl.html, text: tpl.text });
+    }
 
     res.status(201).json({ payment });
   })

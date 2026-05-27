@@ -2,15 +2,20 @@ import { Router } from "express";
 import { z } from "zod";
 import { asyncHandler } from "../../lib/asyncHandler.js";
 import { validate } from "../../middleware/validate.js";
-import { requireAuth, requireSalon } from "../../middleware/auth.js";
+import { requireAuth, requireRole, requireSalon } from "../../middleware/auth.js";
 import { prisma } from "../../lib/prisma.js";
 
 export const salonRoutes = Router();
-salonRoutes.use(requireAuth, requireSalon);
+salonRoutes.use(requireAuth, requireRole("OWNER"), requireSalon);
+
+const HEX_COLOR = /^#([0-9a-fA-F]{6}|[0-9a-fA-F]{8})$/;
 
 const updateSchema = z.object({
   name: z.string().min(2).max(120).optional(),
+  tagline: z.string().max(160).optional().nullable(),
   description: z.string().max(2000).optional().nullable(),
+  coverImageUrl: z.string().url().max(500).optional().nullable(),
+  brandColor: z.string().regex(HEX_COLOR, "Use a hex color like #D89888").optional(),
   timezone: z.string().min(3).max(64).optional(),
   currency: z.string().min(3).max(8).optional(),
   depositMode: z.enum(["NONE", "PERCENTAGE", "FULL"]).optional(),

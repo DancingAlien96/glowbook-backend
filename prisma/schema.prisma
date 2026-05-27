@@ -19,15 +19,21 @@ model User {
   passwordHash String
   name         String
   role         UserRole @default(OWNER)
+  // Tenant this user belongs to. Null only for global ADMIN.
+  salonId      String?
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
-  ownedSalon Salon? @relation("OwnerSalon")
+  salon         Salon?         @relation("SalonMembers", fields: [salonId], references: [id], onDelete: Cascade)
+  stylist       Stylist?       @relation("StylistUser")
   refreshTokens RefreshToken[]
+
+  @@index([salonId, role])
 }
 
 enum UserRole {
   OWNER
+  STYLIST
   STAFF
   ADMIN
 }
@@ -52,10 +58,12 @@ model RefreshToken {
 // =========================
 model Salon {
   id               String   @id @default(cuid())
-  ownerId          String   @unique
   name             String
   slug             String   @unique
+  tagline          String?  @db.VarChar(160)         // Short subtitle under the salon name
   description      String?  @db.Text
+  coverImageUrl    String?  @db.VarChar(500)         // Hero background on the public page
+  brandColor       String   @default("#D89888") @db.VarChar(9) // Hex, used as accent on the public page
   timezone         String   @default("America/Guayaquil")
   currency         String   @default("USD") @db.VarChar(8)
   depositMode      DepositMode @default(PERCENTAGE)
@@ -65,14 +73,15 @@ model Salon {
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
 
-  owner       User           @relation("OwnerSalon", fields: [ownerId], references: [id], onDelete: Cascade)
-  services    Service[]
-  stylists    Stylist[]
+  members       User[]         @relation("SalonMembers")
+  services      Service[]
+  stylists      Stylist[]
   businessHours BusinessHour[]
   blockedSlots  BlockedSlot[]
   clients       Client[]
   appointments  Appointment[]
   payments      Payment[]
+  subscription  Subscription?
 }
 
 enum DepositMode {
@@ -111,6 +120,8 @@ model Service {
 model Stylist {
   id        String  @id @default(cuid())
   salonId   String
+  // Optional link to a User account so the stylist can log in to the portal.
+  userId    String? @unique
   name      String
   role      String? @db.VarChar(128)
   active    Boolean @default(true)
@@ -118,6 +129,7 @@ model Stylist {
   updatedAt DateTime @updatedAt
 
   salon        Salon            @relation(fields: [salonId], references: [id], onDelete: Cascade)
+  user         User?            @relation("StylistUser", fields: [userId], references: [id], onDelete: SetNull)
   services     StylistService[]
   appointments Appointment[]
   blockedSlots BlockedSlot[]
@@ -271,4 +283,82 @@ enum PaymentStatus {
   APPROVED
   REJECTED
   REFUNDED
+}
+
+// =========================
+// Platform billing (super-admin layer)
+// =========================
+// Singleton row (id = "default") with platform-wide config the admin can edit.
+model PlatformSettings {
+  id                  String   @id @default("default")
+  bankDetails         String?  @db.Text                  // Admin's bank info shown to salon owners
+  monthlyPriceCents   Int      @default(2000)            // $20
+  lifetimePriceCents  Int      @default(66000)           // $660
+  trialDays           Int      @default(14)
+  graceDays           Int      @default(7)               // OVERDUE → SUSPENDED after this many days
+  contactEmail        String?  @db.VarChar(160)
+  contactWhatsapp     String?  @db.VarChar(40)
+  updatedAt           DateTime @updatedAt
+  createdAt           DateTime @default(now())
+}
+
+// One subscription per salon.
+model Subscription {
+  id               String       @id @default(cuid())
+  salonId          String       @unique
+  plan             Plan         @default(MONTHLY)
+  status           SubStatus    @default(TRIAL)
+  currentPeriodEnd DateTime?    // null for LIFETIME or TRIAL (use trialEndsAt)
+  trialEndsAt      DateTime?
+  cancelledAt      DateTime?
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
+
+  salon    Salon                 @relation(fields: [salonId], references: [id], onDelete: Cascade)
+  payments SubscriptionPayment[]
+
+  @@index([status])
+  @@index([currentPeriodEnd])
+}
+
+enum Plan {
+  MONTHLY
+  LIFETIME
+}
+
+enum SubStatus {
+  TRIAL
+  ACTIVE
+  OVERDUE
+  SUSPENDED
+  CANCELLED
+  LIFETIME
+}
+
+model SubscriptionPayment {
+  id              String           @id @default(cuid())
+  subscriptionId  String
+  amountCents     Int
+  currency        String           @default("USD") @db.VarChar(8)
+  status          SubPaymentStatus @default(PENDING_REVIEW)
+  periodMonths    Int              @default(1)            // 1 for monthly, 999 for lifetime
+  receiptUrl      String?          @db.VarChar(500)
+  receiptName     String?          @db.VarChar(255)
+  reference       String?          @db.VarChar(128)
+  reviewedAt      DateTime?
+  reviewedBy      String?          // admin userId
+  rejectedReason  String?          @db.VarChar(255)
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  subscription Subscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+
+  @@index([status])
+  @@index([subscriptionId, createdAt])
+}
+
+enum SubPaymentStatus {
+  PENDING_REVIEW
+  APPROVED
+  REJECTED
 }

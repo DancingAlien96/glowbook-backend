@@ -2,12 +2,12 @@ import { Router } from "express";
 import { z } from "zod";
 import { asyncHandler } from "../../lib/asyncHandler.js";
 import { validate } from "../../middleware/validate.js";
-import { requireAuth, requireSalon } from "../../middleware/auth.js";
+import { requireAuth, requireRole, requireSalon } from "../../middleware/auth.js";
 import { prisma } from "../../lib/prisma.js";
 import { NotFound } from "../../lib/errors.js";
 
 export const stylistsRoutes = Router();
-stylistsRoutes.use(requireAuth, requireSalon);
+stylistsRoutes.use(requireAuth, requireRole("OWNER"), requireSalon);
 
 const createSchema = z.object({
   name: z.string().min(2).max(120),

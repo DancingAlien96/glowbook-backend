@@ -2,11 +2,11 @@ import { Router } from "express";
 import { z } from "zod";
 import { asyncHandler } from "../../lib/asyncHandler.js";
 import { validate } from "../../middleware/validate.js";
-import { requireAuth, requireSalon } from "../../middleware/auth.js";
+import { requireAuth, requireRole, requireSalon } from "../../middleware/auth.js";
 import * as svc from "./appointments.service.js";
 
 export const appointmentsRoutes = Router();
-appointmentsRoutes.use(requireAuth, requireSalon);
+appointmentsRoutes.use(requireAuth, requireRole("OWNER"), requireSalon);
 
 const listQuerySchema = z.object({
   from: z.coerce.date().optional(),

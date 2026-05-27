@@ -20,36 +20,45 @@ export async function register(input: RegisterInput, ctx: TokenContext) {
 
   const passwordHash = await bcrypt.hash(input.password, 12);
 
-  const user = await prisma.user.create({
-    data: {
-      email: input.email,
-      name: input.name,
-      passwordHash,
-      role: "OWNER",
-      ownedSalon: {
-        create: {
-          name: input.salonName,
-          slug: input.salonSlug,
-        },
+  const { user, salon } = await prisma.$transaction(async (tx) => {
+    const salon = await tx.salon.create({
+      data: { name: input.salonName, slug: input.salonSlug },
+    });
+    const user = await tx.user.create({
+      data: {
+        email: input.email,
+        name: input.name,
+        passwordHash,
+        role: "OWNER",
+        salonId: salon.id,
       },
-    },
-    include: { ownedSalon: { select: { id: true, slug: true, name: true } } },
+    });
+
+    // Trial subscription: read trialDays from platform settings (default 14).
+    const settings = await tx.platformSettings.findUnique({ where: { id: "default" } });
+    const trialDays = settings?.trialDays ?? 14;
+    const trialEndsAt = new Date(Date.now() + trialDays * 86_400_000);
+    await tx.subscription.create({
+      data: { salonId: salon.id, plan: "MONTHLY", status: "TRIAL", trialEndsAt },
+    });
+
+    return { user, salon };
   });
 
-  return issueTokens(user.id, user.email, user.role, user.ownedSalon?.id, ctx);
+  return issueTokens(user.id, user.email, user.role, salon.id, ctx);
 }
 
 export async function login(input: LoginInput, ctx: TokenContext) {
   const user = await prisma.user.findUnique({
     where: { email: input.email },
-    include: { ownedSalon: { select: { id: true, slug: true, name: true } } },
+    include: { salon: { select: { id: true, slug: true, name: true } } },
   });
   if (!user) throw Unauthorized("Invalid email or password");
 
   const valid = await bcrypt.compare(input.password, user.passwordHash);
   if (!valid) throw Unauthorized("Invalid email or password");
 
-  return issueTokens(user.id, user.email, user.role, user.ownedSalon?.id, ctx);
+  return issueTokens(user.id, user.email, user.role, user.salon?.id, ctx);
 }
 
 export async function refresh(rawToken: string, ctx: TokenContext) {
@@ -57,7 +66,7 @@ export async function refresh(rawToken: string, ctx: TokenContext) {
   const existing = await prisma.refreshToken.findUnique({
     where: { tokenHash },
     include: {
-      user: { include: { ownedSalon: { select: { id: true, slug: true, name: true } } } },
+      user: { include: { salon: { select: { id: true, slug: true, name: true } } } },
     },
   });
 
@@ -65,7 +74,6 @@ export async function refresh(rawToken: string, ctx: TokenContext) {
     throw Unauthorized("Refresh token invalid or expired");
   }
 
-  // Rotate: revoke the old, issue new ones
   await prisma.refreshToken.update({
     where: { id: existing.id },
     data: { revokedAt: new Date() },
@@ -75,7 +83,7 @@ export async function refresh(rawToken: string, ctx: TokenContext) {
     existing.user.id,
     existing.user.email,
     existing.user.role,
-    existing.user.ownedSalon?.id,
+    existing.user.salon?.id,
     ctx
   );
 }
@@ -97,8 +105,11 @@ export async function me(userId: string) {
       name: true,
       role: true,
       createdAt: true,
-      ownedSalon: {
+      salon: {
         select: { id: true, name: true, slug: true, timezone: true, currency: true },
+      },
+      stylist: {
+        select: { id: true, role: true, active: true },
       },
     },
   });

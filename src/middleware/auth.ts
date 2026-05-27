@@ -8,6 +8,7 @@ declare global {
     interface Request {
       auth?: AccessTokenPayload;
       salonId?: string;
+      stylistId?: string;
     }
   }
 }
@@ -26,18 +27,47 @@ export const requireAuth: RequestHandler = (req, _res, next) => {
   }
 };
 
-// Ensures req.salonId is set — fetched from the user's owned salon if not in the token yet.
+// Ensures req.salonId is set — fetched from the user's membership if not in the token yet.
 export const requireSalon: RequestHandler = async (req, _res, next) => {
   if (!req.auth) return next(Unauthorized());
   if (req.salonId) return next();
 
   try {
-    const salon = await prisma.salon.findUnique({
-      where: { ownerId: req.auth.sub },
-      select: { id: true },
+    const user = await prisma.user.findUnique({
+      where: { id: req.auth.sub },
+      select: { salonId: true },
     });
-    if (!salon) return next(Forbidden("No salon associated with this user"));
-    req.salonId = salon.id;
+    if (!user?.salonId) return next(Forbidden("No salon associated with this user"));
+    req.salonId = user.salonId;
+    next();
+  } catch (e) {
+    next(e);
+  }
+};
+
+// Restricts a route to one or more roles.
+export const requireRole = (...allowed: Array<"OWNER" | "STYLIST" | "STAFF" | "ADMIN">): RequestHandler => {
+  return (req, _res, next) => {
+    if (!req.auth) return next(Unauthorized());
+    if (!allowed.includes(req.auth.role as never)) return next(Forbidden("Insufficient role"));
+    next();
+  };
+};
+
+// Resolves the Stylist record linked to the authenticated user (for the portal).
+export const requireStylistUser: RequestHandler = async (req, _res, next) => {
+  if (!req.auth) return next(Unauthorized());
+  if (req.auth.role !== "STYLIST") return next(Forbidden("Stylist-only route"));
+
+  try {
+    const stylist = await prisma.stylist.findUnique({
+      where: { userId: req.auth.sub },
+      select: { id: true, salonId: true, active: true },
+    });
+    if (!stylist) return next(Forbidden("Stylist profile not found"));
+    if (!stylist.active) return next(Forbidden("Your stylist profile is paused"));
+    req.salonId = stylist.salonId;
+    req.stylistId = stylist.id;
     next();
   } catch (e) {
     next(e);

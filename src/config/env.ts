@@ -15,6 +15,12 @@ const schema = z.object({
 
   UPLOAD_DIR: z.string().default("./uploads"),
   MAX_UPLOAD_MB: z.coerce.number().int().positive().default(5),
+
+  // Email — optional. If RESEND_API_KEY is missing, email sends are no-ops
+  // (logged as warnings) so dev environments without an API key still work.
+  RESEND_API_KEY: z.string().optional(),
+  EMAIL_FROM: z.string().default("Glowbook <onboarding@resend.dev>"),
+  APP_URL: z.string().url().default("http://localhost:3000"),
 });
 
 const parsed = schema.safeParse(process.env);

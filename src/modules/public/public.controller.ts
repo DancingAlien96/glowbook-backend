@@ -5,6 +5,8 @@ import { validate } from "../../middleware/validate.js";
 import { prisma } from "../../lib/prisma.js";
 import { NotFound } from "../../lib/errors.js";
 import * as appointments from "../appointments/appointments.service.js";
+import { sendEmail } from "../../lib/email.js";
+import { bookingReceivedTemplate } from "../../lib/emails/bookingReceived.js";
 
 export const publicRoutes = Router();
 
@@ -18,7 +20,10 @@ publicRoutes.get(
         id: true,
         name: true,
         slug: true,
+        tagline: true,
         description: true,
+        coverImageUrl: true,
+        brandColor: true,
         timezone: true,
         currency: true,
         depositMode: true,
@@ -120,7 +125,10 @@ publicRoutes.post(
   asyncHandler(async (req, res) => {
     const salon = await prisma.salon.findUnique({
       where: { slug: req.params.slug! },
-      select: { id: true, depositMode: true, depositPercent: true, bankDetails: true },
+      select: {
+        id: true, name: true, slug: true, currency: true,
+        depositMode: true, depositPercent: true, bankDetails: true,
+      },
     });
     if (!salon) throw NotFound("Salon not found");
 
@@ -133,6 +141,23 @@ publicRoutes.post(
       notes: data.notes ?? null,
       client: data.client,
     });
+
+    // Fire-and-forget email to the client confirming we received her booking.
+    if (data.client.email) {
+      const tpl = bookingReceivedTemplate({
+        clientName: data.client.name,
+        salonName: salon.name,
+        salonSlug: salon.slug,
+        serviceName: appointment.service.name,
+        stylistName: appointment.stylist?.name ?? null,
+        startAt: appointment.startAt,
+        durationMin: appointment.durationMin,
+        depositCents: appointment.depositCents,
+        currency: salon.currency,
+        requiresReceipt: salon.depositMode !== "NONE",
+      });
+      sendEmail({ to: data.client.email, subject: tpl.subject, html: tpl.html, text: tpl.text });
+    }
 
     res.status(201).json({
       appointment: {
