@@ -68,11 +68,24 @@ publicRoutes.get(
   asyncHandler(async (req, res) => {
     const salon = await prisma.salon.findUnique({
       where: { slug: req.params.slug! },
-      select: { id: true, businessHours: true },
+      select: { id: true, businessHours: { orderBy: { dayOfWeek: "asc" } } },
     });
     if (!salon) throw NotFound("Salon not found");
 
     const q = req.query as unknown as { from: Date; to: Date; stylistId?: string };
+
+    // If a specific stylist is requested and she has her own weekly schedule,
+    // use it; otherwise fall back to the salon hours.
+    let businessHours = salon.businessHours as { dayOfWeek: number; openMin: number; closeMin: number }[];
+    if (q.stylistId) {
+      const stylistHours = await prisma.stylistHour.findMany({
+        where: { stylistId: q.stylistId },
+        orderBy: { dayOfWeek: "asc" },
+        select: { dayOfWeek: true, openMin: true, closeMin: true },
+      });
+      if (stylistHours.length > 0) businessHours = stylistHours;
+    }
+
     const where = {
       salonId: salon.id,
       ...(q.stylistId ? { stylistId: q.stylistId } : {}),
@@ -100,7 +113,7 @@ publicRoutes.get(
     ]);
 
     res.json({
-      businessHours: salon.businessHours,
+      businessHours,
       busy,
       blocked,
     });

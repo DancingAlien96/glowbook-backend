@@ -133,8 +133,24 @@ model Stylist {
   services     StylistService[]
   appointments Appointment[]
   blockedSlots BlockedSlot[]
+  hours        StylistHour[]
 
   @@index([salonId, active])
+}
+
+// Optional per-stylist weekly schedule. If a stylist has no rows here,
+// she inherits the salon's BusinessHour.
+model StylistHour {
+  id        String @id @default(cuid())
+  stylistId String
+  dayOfWeek Int    // 0=Sun ... 6=Sat
+  openMin   Int
+  closeMin  Int
+
+  stylist Stylist @relation(fields: [stylistId], references: [id], onDelete: Cascade)
+
+  @@unique([stylistId, dayOfWeek])
+  @@index([stylistId])
 }
 
 model StylistService {

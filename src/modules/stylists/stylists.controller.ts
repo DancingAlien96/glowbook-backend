@@ -24,9 +24,51 @@ stylistsRoutes.get(
     const stylists = await prisma.stylist.findMany({
       where: { salonId: req.salonId! },
       orderBy: [{ active: "desc" }, { name: "asc" }],
-      include: { services: { select: { serviceId: true } } },
+      include: {
+        services: { select: { serviceId: true } },
+        hours: { select: { dayOfWeek: true, openMin: true, closeMin: true }, orderBy: { dayOfWeek: "asc" } },
+      },
     });
     res.json({ stylists });
+  })
+);
+
+// Owner sets a stylist's weekly schedule (replaces all rows).
+// An empty list means "inherit the salon hours".
+const hoursSchema = z.object({
+  hours: z
+    .array(
+      z.object({
+        dayOfWeek: z.number().int().min(0).max(6),
+        openMin: z.number().int().min(0).max(1440),
+        closeMin: z.number().int().min(0).max(1440),
+      })
+    )
+    .max(7),
+});
+
+stylistsRoutes.put(
+  "/:id/hours",
+  validate(hoursSchema),
+  asyncHandler(async (req, res) => {
+    const id = req.params.id!;
+    const stylist = await prisma.stylist.findFirst({ where: { id, salonId: req.salonId! } });
+    if (!stylist) throw NotFound("Stylist not found");
+
+    const { hours } = req.body as z.infer<typeof hoursSchema>;
+    await prisma.$transaction(async (tx) => {
+      await tx.stylistHour.deleteMany({ where: { stylistId: id } });
+      if (hours.length) {
+        await tx.stylistHour.createMany({ data: hours.map((h) => ({ ...h, stylistId: id })) });
+      }
+    });
+
+    const updated = await prisma.stylistHour.findMany({
+      where: { stylistId: id },
+      orderBy: { dayOfWeek: "asc" },
+      select: { dayOfWeek: true, openMin: true, closeMin: true },
+    });
+    res.json({ hours: updated });
   })
 );
 

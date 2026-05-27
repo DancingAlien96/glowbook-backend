@@ -51,6 +51,7 @@ staffRoutes.get(
             role: true,
             active: true,
             services: { select: { serviceId: true } },
+            hours: { select: { dayOfWeek: true, openMin: true, closeMin: true }, orderBy: { dayOfWeek: "asc" } },
           },
         },
       },
