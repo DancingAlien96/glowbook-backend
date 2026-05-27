@@ -1,0 +1,72 @@
+# Standalone compose for the Raspberry Pi test box.
+# The Pi already runs terragroup (host :4000) and nutriverde (host :4001),
+# so the API is exposed on :4002 here. MySQL is NOT published to the host —
+# the API reaches it over the private compose network, matching the other stacks.
+#
+# Usage on the Pi:
+#   SEED_ON_BOOT=true docker compose -f docker-compose.pi.yml up --build -d   # first run (seeds demo)
+#   docker compose -f docker-compose.pi.yml logs -f api
+#   docker compose -f docker-compose.pi.yml down                              # keep data
+#
+# API will be reachable at http://<pi-ip>:4002/api
+
+services:
+  mysql:
+    image: mysql:8.4
+    container_name: glowbook-pi-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: glowbook_root
+      MYSQL_DATABASE: glowbook
+      MYSQL_USER: glowbook
+      MYSQL_PASSWORD: glowbook
+    volumes:
+      - glowbook_pi_mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-pglowbook_root"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+    networks:
+      - glowbook-pi
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: glowbook-api:pi
+    container_name: glowbook-pi-api
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: 4000
+      # Allow the locally-run frontend (and the Pi's own LAN address) to call the API.
+      CORS_ORIGIN: "http://localhost:3000,http://192.168.1.140:3000"
+      DATABASE_URL: "mysql://glowbook:glowbook@mysql:3306/glowbook"
+      JWT_ACCESS_SECRET: "pi-test-access-secret-change-me-min-32-characters"
+      JWT_REFRESH_SECRET: "pi-test-refresh-secret-change-me-min-32-characters"
+      JWT_ACCESS_TTL: "15m"
+      JWT_REFRESH_TTL: "30d"
+      UPLOAD_DIR: "/app/uploads"
+      MAX_UPLOAD_MB: "5"
+      SEED_ON_BOOT: "${SEED_ON_BOOT:-false}"
+      RESEND_API_KEY: "${RESEND_API_KEY:-}"
+      EMAIL_FROM: "${EMAIL_FROM:-Ecodama <onboarding@resend.dev>}"
+      APP_URL: "${APP_URL:-http://192.168.1.140:3000}"
+    ports:
+      - "4002:4000"
+    volumes:
+      - glowbook_pi_uploads:/app/uploads
+    depends_on:
+      mysql:
+        condition: service_healthy
+    networks:
+      - glowbook-pi
+
+volumes:
+  glowbook_pi_mysql_data:
+  glowbook_pi_uploads:
+
+networks:
+  glowbook-pi:
+    driver: bridge
