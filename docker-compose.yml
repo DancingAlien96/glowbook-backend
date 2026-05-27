@@ -1,4 +1,4 @@
-# Glowbook — backend stack (MySQL + API)
+# Ecodama (glowbook codebase) — backend stack (MySQL + API)
 # El frontend se corre localmente con `npm run dev` desde glowbook-frontend.
 #
 # Uso:
@@ -55,7 +55,7 @@ services:
       SEED_ON_BOOT: "${SEED_ON_BOOT:-false}"
       # Email (Resend). The .env file at the project root supplies the values.
       RESEND_API_KEY: "${RESEND_API_KEY:-}"
-      EMAIL_FROM: "${EMAIL_FROM:-Glowbook <onboarding@resend.dev>}"
+      EMAIL_FROM: "${EMAIL_FROM:-Ecodama <onboarding@resend.dev>}"
       APP_URL: "${APP_URL:-http://localhost:3000}"
     ports:
       - "4000:4000"

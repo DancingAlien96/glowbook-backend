@@ -44,7 +44,7 @@ app.use(notFound);
 app.use(errorHandler);
 
 const server = app.listen(env.PORT, () => {
-  console.log(`✦ Glowbook API ready on http://localhost:${env.PORT}`);
+  console.log(`✦ Ecodama API ready on http://localhost:${env.PORT}`);
   console.log(`  Environment: ${env.NODE_ENV}`);
   console.log(`  CORS origin: ${env.CORS_ORIGIN}`);
 });

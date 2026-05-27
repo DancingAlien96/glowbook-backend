@@ -2,9 +2,11 @@
 // Inlined styles only (most email clients strip <style> tags).
 // Premium feminine palette consistent with the web UI.
 
+import { env } from "../../config/env.js";
+
 export type LayoutOptions = {
   preheader?: string;       // Hidden preview text shown by Gmail/Outlook before opening
-  brandColor?: string;      // Accent — defaults to Glowbook rose nude
+  brandColor?: string;      // Accent — defaults to Ecodama rose nude
 };
 
 const PALETTE = {
@@ -51,7 +53,7 @@ export function wrap(body: string, opts: LayoutOptions = {}): string {
     <meta name="viewport" content="width=device-width,initial-scale=1">
     <meta name="color-scheme" content="light only">
     <meta name="supported-color-schemes" content="light only">
-    <title>Glowbook</title>
+    <title>Ecodama</title>
   </head>
   <body style="margin:0;padding:0;background:${PALETTE.bg};font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:${PALETTE.text};">
     ${preheader ? `<div style="display:none;font-size:1px;color:${PALETTE.bg};line-height:1px;max-height:0;max-width:0;opacity:0;overflow:hidden;">${escape(preheader)}</div>` : ""}
@@ -62,11 +64,9 @@ export function wrap(body: string, opts: LayoutOptions = {}): string {
           <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="max-width:560px;background:${PALETTE.card};border:1px solid ${PALETTE.line};border-radius:20px;overflow:hidden;">
             <!-- Brand header -->
             <tr>
-              <td style="padding:28px 32px 0">
-                <div style="display:inline-block;vertical-align:middle">
-                  <span style="display:inline-block;width:28px;height:28px;border-radius:50%;background:linear-gradient(135deg,#E8B4A1,#D5C8E8);vertical-align:middle"></span>
-                  <span style="font-family:Georgia,'Times New Roman',serif;font-size:20px;color:${PALETTE.text};letter-spacing:-0.01em;vertical-align:middle;margin-left:8px;">Glowbook</span>
-                </div>
+              <td style="padding:28px 32px 0" align="center">
+                <img src="${env.APP_URL}/ecodamalogo.png" alt="Ecodama" width="120" height="120"
+                     style="display:inline-block;width:120px;height:auto;border:0;outline:none;text-decoration:none">
               </td>
             </tr>
 
@@ -82,7 +82,7 @@ export function wrap(body: string, opts: LayoutOptions = {}): string {
               <td style="padding:0 32px 28px">
                 <div style="height:1px;background:${PALETTE.line};margin-bottom:18px"></div>
                 <p style="margin:0;font-size:11px;color:${PALETTE.textMuted};line-height:1.5">
-                  Recibiste este email porque tu cita / suscripción está vinculada a Glowbook.<br>
+                  Recibiste este email porque tu cita / suscripción está vinculada a Ecodama.<br>
                   Si crees que es un error, simplemente ignora este mensaje.
                 </p>
               </td>
@@ -90,7 +90,7 @@ export function wrap(body: string, opts: LayoutOptions = {}): string {
           </table>
 
           <p style="margin:18px 0 0;font-size:11px;color:${PALETTE.textMuted}">
-            © Glowbook · Reservas premium para salones de belleza
+            © Ecodama · Reservas premium para salones de belleza
           </p>
         </td>
       </tr>

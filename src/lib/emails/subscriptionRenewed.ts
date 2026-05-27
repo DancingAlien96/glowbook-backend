@@ -20,8 +20,8 @@ const money = (cents: number, currency: string) =>
 export function subscriptionRenewedTemplate(input: SubscriptionRenewedInput) {
   const isLifetime = input.plan === "LIFETIME";
   const subject = isLifetime
-    ? `Bienvenida al Plan Lifetime de Glowbook ✦`
-    : `Tu plan Glowbook fue renovado ✨`;
+    ? `Bienvenida al Plan Lifetime de Ecodama ✦`
+    : `Tu plan Ecodama fue renovado ✨`;
 
   const body = `
     ${heading(
@@ -31,8 +31,8 @@ export function subscriptionRenewedTemplate(input: SubscriptionRenewedInput) {
     )}
     ${paragraph(
       isLifetime
-        ? `Confirmamos tu pago único — <strong>${input.salonName}</strong> tiene Glowbook de por vida, con todas las funciones presentes y futuras incluidas. Gracias por confiar tan pronto en nosotras.`
-        : `Confirmamos tu pago — <strong>${input.salonName}</strong> tiene Glowbook activo por ${
+        ? `Confirmamos tu pago único — <strong>${input.salonName}</strong> tiene Ecodama de por vida, con todas las funciones presentes y futuras incluidas. Gracias por confiar tan pronto en nosotras.`
+        : `Confirmamos tu pago — <strong>${input.salonName}</strong> tiene Ecodama activo por ${
             input.periodMonths
           } mes${input.periodMonths === 1 ? "" : "es"} más.`
     )}
@@ -53,7 +53,7 @@ export function subscriptionRenewedTemplate(input: SubscriptionRenewedInput) {
     `Hola ${input.ownerName},`,
     ``,
     isLifetime
-      ? `Confirmamos tu pago Lifetime de ${money(input.amountCents, input.currency)}. Glowbook es tuyo para siempre ✦`
+      ? `Confirmamos tu pago Lifetime de ${money(input.amountCents, input.currency)}. Ecodama es tuyo para siempre ✦`
       : `Confirmamos tu pago de ${money(input.amountCents, input.currency)}. Tu plan vence el ${input.newPeriodEnd ? formatDate(input.newPeriodEnd) : "—"}.`,
     ``,
     `Ver suscripción: ${env.APP_URL}/dashboard/billing`,

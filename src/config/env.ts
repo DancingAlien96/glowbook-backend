@@ -19,7 +19,7 @@ const schema = z.object({
   // Email — optional. If RESEND_API_KEY is missing, email sends are no-ops
   // (logged as warnings) so dev environments without an API key still work.
   RESEND_API_KEY: z.string().optional(),
-  EMAIL_FROM: z.string().default("Glowbook <onboarding@resend.dev>"),
+  EMAIL_FROM: z.string().default("Ecodama <onboarding@resend.dev>"),
   APP_URL: z.string().url().default("http://localhost:3000"),
 });
 

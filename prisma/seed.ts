@@ -14,12 +14,12 @@ async function main() {
     create: {
       id: "default",
       bankDetails:
-        "Banco Pichincha · Cta. Ahorros 2200-100-200\nGlowbook S.A.S. · RUC 0999999999001\nReferencia: nombre de tu salón",
+        "Banco Pichincha · Cta. Ahorros 2200-100-200\nEcodama · RUC 0999999999001\nReferencia: nombre de tu salón",
       monthlyPriceCents: 2000,
       lifetimePriceCents: 66000,
       trialDays: 14,
       graceDays: 7,
-      contactEmail: "hola@glowbook.app",
+      contactEmail: "hola@ecodama.online",
       contactWhatsapp: "+593999000111",
     },
     update: {},
@@ -27,17 +27,17 @@ async function main() {
 
   // ---- Super-admin (platform owner) ----
   await prisma.user.upsert({
-    where: { email: "admin@glowbook.app" },
+    where: { email: "admin@ecodama.online" },
     create: {
-      email: "admin@glowbook.app",
-      name: "Glowbook Admin",
+      email: "admin@ecodama.online",
+      name: "Ecodama Admin",
       passwordHash: password,
       role: "ADMIN",
       salonId: null,
     },
     update: { role: "ADMIN", passwordHash: password },
   });
-  console.log("  → ADMIN   admin@glowbook.app");
+  console.log("  → ADMIN   admin@ecodama.online");
 
   // Create or fetch the salon by slug (idempotent).
   let salon = await prisma.salon.findUnique({ where: { slug: "maison-rose" } });
