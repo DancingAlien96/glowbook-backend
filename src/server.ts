@@ -20,9 +20,22 @@ app.use(
     crossOriginResourcePolicy: { policy: "cross-origin" },
   })
 );
+// Allow: configured origins (comma-separated env), any *.vercel.app deploy,
+// and requests with no Origin (curl, server-to-server, health checks).
+const allowedOrigins = env.CORS_ORIGIN.split(",").map((s) => s.trim()).filter(Boolean);
 app.use(
   cors({
-    origin: env.CORS_ORIGIN.split(",").map((s) => s.trim()),
+    origin(origin, cb) {
+      if (!origin) return cb(null, true);
+      if (allowedOrigins.includes(origin)) return cb(null, true);
+      try {
+        const host = new URL(origin).hostname;
+        if (host === "vercel.app" || host.endsWith(".vercel.app")) return cb(null, true);
+      } catch {
+        /* malformed origin → reject below */
+      }
+      return cb(new Error(`Origin not allowed by CORS: ${origin}`));
+    },
     credentials: true,
   })
 );

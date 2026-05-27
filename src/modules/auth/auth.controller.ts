@@ -8,10 +8,14 @@ import { env } from "../../config/env.js";
 import { parseDuration } from "../../lib/jwt.js";
 
 const REFRESH_COOKIE = "gb_refresh";
+// In production the frontend (e.g. Vercel) and the API live on different sites,
+// so the refresh cookie must be SameSite=None + Secure to be sent cross-site.
+// In development (same-site localhost over http) we use Lax + non-secure.
+const isProd = env.NODE_ENV === "production";
 const refreshCookieOptions = () => ({
   httpOnly: true,
-  secure: env.NODE_ENV === "production",
-  sameSite: "lax" as const,
+  secure: isProd,
+  sameSite: (isProd ? "none" : "lax") as "none" | "lax",
   path: "/api/auth",
   maxAge: parseDuration(env.JWT_REFRESH_TTL),
 });
@@ -59,7 +63,12 @@ export const refresh = asyncHandler(async (req, res) => {
 export const logout = asyncHandler(async (req, res) => {
   const token = (req.cookies?.[REFRESH_COOKIE] as string | undefined) ?? "";
   await auth.logout(token);
-  res.clearCookie(REFRESH_COOKIE, { path: "/api/auth" });
+  res.clearCookie(REFRESH_COOKIE, {
+    path: "/api/auth",
+    httpOnly: true,
+    secure: isProd,
+    sameSite: (isProd ? "none" : "lax") as "none" | "lax",
+  });
   res.status(204).end();
 });
 
