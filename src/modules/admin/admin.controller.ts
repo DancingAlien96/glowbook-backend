@@ -1,5 +1,6 @@
 import { Router } from "express";
 import bcrypt from "bcryptjs";
+import { randomBytes } from "node:crypto";
 import { z } from "zod";
 import { asyncHandler } from "../../lib/asyncHandler.js";
 import { validate } from "../../middleware/validate.js";
@@ -224,6 +225,82 @@ adminRoutes.post(
         name: owner.name,
         email: owner.email,
       },
+    });
+  })
+);
+
+// Single salon detail — everything an admin might need at a glance:
+// salon info, current subscription, member list (owners + stylists), counts.
+adminRoutes.get(
+  "/salons/:id",
+  asyncHandler(async (req, res) => {
+    const salon = await prisma.salon.findUnique({
+      where: { id: req.params.id! },
+      select: {
+        id: true, name: true, slug: true, tagline: true,
+        coverImageUrl: true, brandColor: true,
+        timezone: true, currency: true,
+        depositMode: true, depositPercent: true,
+        bankDetails: true, createdAt: true,
+        subscription: true,
+        members: {
+          orderBy: [{ role: "asc" }, { createdAt: "asc" }],
+          select: {
+            id: true, name: true, email: true, role: true, createdAt: true,
+            stylist: { select: { id: true, active: true, role: true } },
+          },
+        },
+        _count: {
+          select: { appointments: true, services: true, stylists: true, clients: true },
+        },
+      },
+    });
+    if (!salon) throw NotFound("Salon not found");
+    if (salon.subscription) {
+      salon.subscription = await refreshSubscriptionStatus(salon.subscription);
+    }
+    res.json({ salon });
+  })
+);
+
+// Resets a user's password. Returns the new plaintext password ONCE so the
+// admin can pass it to the owner manually. The hash is rotated and every
+// other refresh token for that user is revoked, forcing logout elsewhere.
+// ADMIN cannot be reset through this endpoint to avoid lockouts.
+function generateTempPassword(): string {
+  // Ambiguous chars (0/O, 1/l/I) stripped so the dueña can read the
+  // password aloud over the phone without confusion.
+  const chars = "abcdefghjkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+  const bytes = randomBytes(14);
+  let p = "";
+  for (let i = 0; i < bytes.length; i++) p += chars[bytes[i]! % chars.length];
+  return p + "!2";
+}
+
+adminRoutes.post(
+  "/users/:id/reset-password",
+  asyncHandler(async (req, res) => {
+    const user = await prisma.user.findUnique({
+      where: { id: req.params.id! },
+      select: { id: true, email: true, name: true, role: true },
+    });
+    if (!user) throw NotFound("User not found");
+    if (user.role === "ADMIN") throw new Error("Cannot reset another admin's password through this endpoint.");
+
+    const newPassword = await generateTempPassword();
+    const hash = await bcrypt.hash(newPassword, 12);
+
+    await prisma.$transaction([
+      prisma.user.update({ where: { id: user.id }, data: { passwordHash: hash } }),
+      prisma.refreshToken.updateMany({
+        where: { userId: user.id, revokedAt: null },
+        data: { revokedAt: new Date() },
+      }),
+    ]);
+
+    res.json({
+      newPassword,
+      user: { id: user.id, email: user.email, name: user.name },
     });
   })
 );
