@@ -53,6 +53,10 @@ services:
       RESEND_API_KEY: "${RESEND_API_KEY:-}"
       EMAIL_FROM: "${EMAIL_FROM:-Ecodama <onboarding@resend.dev>}"
       APP_URL: "${APP_URL:-http://192.168.1.140:3000}"
+      # Web Push (VAPID) — values come from a sibling .env (gitignored).
+      VAPID_PUBLIC_KEY: "${VAPID_PUBLIC_KEY:-}"
+      VAPID_PRIVATE_KEY: "${VAPID_PRIVATE_KEY:-}"
+      VAPID_SUBJECT: "${VAPID_SUBJECT:-mailto:soporte@ecodama.online}"
     ports:
       - "4002:4000"
     volumes:
