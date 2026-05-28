@@ -1,13 +1,15 @@
 import { Router } from "express";
+import bcrypt from "bcryptjs";
 import { z } from "zod";
 import { asyncHandler } from "../../lib/asyncHandler.js";
 import { validate } from "../../middleware/validate.js";
 import { requireAuth, requireRole } from "../../middleware/auth.js";
 import { prisma } from "../../lib/prisma.js";
-import { NotFound } from "../../lib/errors.js";
+import { Conflict, NotFound } from "../../lib/errors.js";
 import { applyApprovedPayment, refreshSubscriptionStatus } from "../../lib/billing.js";
 import { sendEmail } from "../../lib/email.js";
 import { subscriptionRenewedTemplate } from "../../lib/emails/subscriptionRenewed.js";
+import { welcomeOwnerTemplate } from "../../lib/emails/welcomeOwner.js";
 
 export const adminRoutes = Router();
 adminRoutes.use(requireAuth, requireRole("ADMIN"));
@@ -127,6 +129,102 @@ adminRoutes.get(
     }
 
     res.json({ salons });
+  })
+);
+
+// Manual salon creation (off-platform sales, demos, in-person sign-ups).
+// Creates Salon + OWNER user + Subscription in a single transaction, mirrors
+// the public /auth/register logic but adds:
+//   - plan choice: TRIAL (default, honours platform.trialDays) | LIFETIME
+//   - optional fire-and-forget welcome email with the temp password
+const slugRegex = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
+const createSalonSchema = z.object({
+  ownerName: z.string().min(2).max(120),
+  ownerEmail: z.string().email().toLowerCase(),
+  ownerPassword: z.string().min(8).max(128),
+  salonName: z.string().min(2).max(120),
+  salonSlug: z.string().min(3).max(64).regex(slugRegex, "Slug debe ser minúsculas, números y guiones"),
+  plan: z.enum(["TRIAL", "LIFETIME"]).default("TRIAL"),
+  sendInvite: z.boolean().default(true),
+});
+
+adminRoutes.post(
+  "/salons",
+  validate(createSalonSchema),
+  asyncHandler(async (req, res) => {
+    const input = req.body as z.infer<typeof createSalonSchema>;
+
+    const [existingEmail, existingSlug] = await Promise.all([
+      prisma.user.findUnique({ where: { email: input.ownerEmail }, select: { id: true } }),
+      prisma.salon.findUnique({ where: { slug: input.salonSlug }, select: { id: true } }),
+    ]);
+    if (existingEmail) throw Conflict("Ese email ya está registrado.");
+    if (existingSlug) throw Conflict("Ese slug ya está en uso.");
+
+    const passwordHash = await bcrypt.hash(input.ownerPassword, 12);
+
+    const { salon, owner } = await prisma.$transaction(async (tx) => {
+      const salon = await tx.salon.create({
+        data: { name: input.salonName, slug: input.salonSlug },
+      });
+      const owner = await tx.user.create({
+        data: {
+          email: input.ownerEmail,
+          name: input.ownerName,
+          passwordHash,
+          role: "OWNER",
+          salonId: salon.id,
+        },
+      });
+
+      if (input.plan === "LIFETIME") {
+        await tx.subscription.create({
+          data: {
+            salonId: salon.id,
+            plan: "LIFETIME",
+            status: "LIFETIME",
+            currentPeriodEnd: null,
+            trialEndsAt: null,
+          },
+        });
+      } else {
+        const settings = await tx.platformSettings.findUnique({ where: { id: "default" } });
+        const trialDays = settings?.trialDays ?? 14;
+        const trialEndsAt = new Date(Date.now() + trialDays * 86_400_000);
+        await tx.subscription.create({
+          data: { salonId: salon.id, plan: "MONTHLY", status: "TRIAL", trialEndsAt },
+        });
+      }
+
+      return { salon, owner };
+    });
+
+    // Welcome email — fire and forget. Skipped if RESEND_API_KEY is unset.
+    if (input.sendInvite) {
+      const tpl = welcomeOwnerTemplate({
+        ownerName: owner.name,
+        ownerEmail: owner.email,
+        salonName: salon.name,
+        salonSlug: salon.slug,
+        tempPassword: input.ownerPassword,
+        plan: input.plan,
+      });
+      sendEmail({ to: owner.email, subject: tpl.subject, html: tpl.html, text: tpl.text });
+    }
+
+    res.status(201).json({
+      salon: {
+        id: salon.id,
+        name: salon.name,
+        slug: salon.slug,
+        createdAt: salon.createdAt,
+      },
+      owner: {
+        id: owner.id,
+        name: owner.name,
+        email: owner.email,
+      },
+    });
   })
 );
 
