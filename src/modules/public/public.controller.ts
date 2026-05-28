@@ -7,6 +7,7 @@ import { NotFound } from "../../lib/errors.js";
 import * as appointments from "../appointments/appointments.service.js";
 import { sendEmail } from "../../lib/email.js";
 import { bookingReceivedTemplate } from "../../lib/emails/bookingReceived.js";
+import { sendPushToSalonOwners, sendPushToStylist } from "../../lib/webPush.js";
 
 export const publicRoutes = Router();
 
@@ -170,6 +171,25 @@ publicRoutes.post(
         requiresReceipt: salon.depositMode !== "NONE",
       });
       sendEmail({ to: data.client.email, subject: tpl.subject, html: tpl.html, text: tpl.text });
+    }
+
+    // Push to the salon's owner(s) — and to the chosen stylist if any.
+    const when = new Date(appointment.startAt).toLocaleString("es-EC", {
+      day: "numeric", month: "short", hour: "2-digit", minute: "2-digit",
+    });
+    void sendPushToSalonOwners(salon.id, {
+      title: "Nueva reserva ✨",
+      body: `${appointment.client.name} · ${appointment.service.name} · ${when}`,
+      url: "/dashboard/appointments",
+      tag: `booking-${appointment.id}`,
+    });
+    if (appointment.stylist?.id) {
+      void sendPushToStylist(appointment.stylist.id, {
+        title: "Nueva cita asignada",
+        body: `${appointment.client.name} · ${appointment.service.name} · ${when}`,
+        url: "/me/appointments",
+        tag: `booking-${appointment.id}`,
+      });
     }
 
     res.status(201).json({

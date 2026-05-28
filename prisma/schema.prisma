@@ -24,9 +24,10 @@ model User {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
-  salon         Salon?         @relation("SalonMembers", fields: [salonId], references: [id], onDelete: Cascade)
-  stylist       Stylist?       @relation("StylistUser")
-  refreshTokens RefreshToken[]
+  salon             Salon?              @relation("SalonMembers", fields: [salonId], references: [id], onDelete: Cascade)
+  stylist           Stylist?            @relation("StylistUser")
+  refreshTokens     RefreshToken[]
+  pushSubscriptions PushSubscription[]
 
   @@index([salonId, role])
 }
@@ -238,6 +239,9 @@ model Appointment {
   depositCents Int      @default(0)
   status       AppointmentStatus @default(PENDING)
   notes        String?  @db.Text
+  // Push reminder bookkeeping — set when the "30 min before" push fires so the
+  // cron doesn't notify twice for the same appointment.
+  reminderSentAt DateTime?
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
@@ -251,6 +255,7 @@ model Appointment {
   @@index([stylistId, startAt])
   @@index([clientId])
   @@index([status])
+  @@index([status, reminderSentAt, startAt])
 }
 
 enum AppointmentStatus {
@@ -377,4 +382,25 @@ enum SubPaymentStatus {
   PENDING_REVIEW
   APPROVED
   REJECTED
+}
+
+// =========================
+// Web Push subscriptions
+// =========================
+// One row per browser/device that has accepted notifications. We key by the
+// endpoint (unique per browser instance) so re-subscribing the same device
+// updates the keys instead of creating duplicates. When the push service
+// reports the subscription as gone (404/410), we delete the row.
+model PushSubscription {
+  id        String   @id @default(cuid())
+  userId    String
+  endpoint  String   @unique @db.VarChar(500)
+  p256dh    String   @db.VarChar(255)
+  auth      String   @db.VarChar(255)
+  userAgent String?  @db.VarChar(255)
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
 }

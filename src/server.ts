@@ -9,6 +9,7 @@ import fs from "node:fs";
 import { env } from "./config/env.js";
 import { apiRouter } from "./routes/index.js";
 import { errorHandler, notFound } from "./middleware/error.js";
+import { startReminderJob } from "./jobs/reminders.js";
 
 const app = express();
 
@@ -60,6 +61,7 @@ const server = app.listen(env.PORT, () => {
   console.log(`✦ Ecodama API ready on http://localhost:${env.PORT}`);
   console.log(`  Environment: ${env.NODE_ENV}`);
   console.log(`  CORS origin: ${env.CORS_ORIGIN}`);
+  startReminderJob();
 });
 
 // Graceful shutdown

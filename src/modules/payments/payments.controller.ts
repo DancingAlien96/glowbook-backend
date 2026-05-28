@@ -8,6 +8,7 @@ import { NotFound } from "../../lib/errors.js";
 import { sendEmail } from "../../lib/email.js";
 import { receiptArrivedTemplate } from "../../lib/emails/receiptArrived.js";
 import { bookingConfirmedTemplate } from "../../lib/emails/bookingConfirmed.js";
+import { sendPushToSalonOwners } from "../../lib/webPush.js";
 
 export const paymentsRoutes = Router();
 paymentsRoutes.use(requireAuth, requireRole("OWNER"), requireSalon);
@@ -168,6 +169,15 @@ publicPaymentsRoutes.post(
       });
       sendEmail({ to: owner.email, subject: tpl.subject, html: tpl.html, text: tpl.text });
     }
+
+    // Push (fire-and-forget) — owner gets the receipt notification on their device.
+    void sendPushToSalonOwners(appointment.salonId, {
+      title: "Comprobante por revisar",
+      body: `${appointment.client.name} subió el comprobante de ${appointment.service.name}.`,
+      url: "/dashboard/payments",
+      tag: `receipt-${payment.id}`,
+      requireInteraction: true,
+    });
 
     res.status(201).json({ payment });
   })

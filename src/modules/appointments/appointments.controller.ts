@@ -4,6 +4,7 @@ import { asyncHandler } from "../../lib/asyncHandler.js";
 import { validate } from "../../middleware/validate.js";
 import { requireAuth, requireRole, requireSalon } from "../../middleware/auth.js";
 import * as svc from "./appointments.service.js";
+import { sendPushToStylist } from "../../lib/webPush.js";
 
 export const appointmentsRoutes = Router();
 appointmentsRoutes.use(requireAuth, requireRole("OWNER"), requireSalon);
@@ -47,10 +48,27 @@ appointmentsRoutes.post(
   validate(createSchema),
   asyncHandler(async (req, res) => {
     const data = req.body as z.infer<typeof createSchema>;
+    // Owner-created bookings (walk-in / phone) are confirmed immediately —
+    // the client pays in person, so no online deposit is required.
     const appointment = await svc.createAppointment({
       salonId: req.salonId!,
       ...data,
+      status: "CONFIRMED",
     });
+
+    // If the owner picked a stylist, let her know on her device.
+    if (appointment.stylist?.id) {
+      const when = new Date(appointment.startAt).toLocaleString("es-EC", {
+        day: "numeric", month: "short", hour: "2-digit", minute: "2-digit",
+      });
+      void sendPushToStylist(appointment.stylist.id, {
+        title: "Nueva cita asignada",
+        body: `${appointment.client.name} · ${appointment.service.name} · ${when}`,
+        url: "/me/appointments",
+        tag: `booking-${appointment.id}`,
+      });
+    }
+
     res.status(201).json({ appointment });
   })
 );

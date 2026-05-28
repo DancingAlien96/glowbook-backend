@@ -21,6 +21,12 @@ const schema = z.object({
   RESEND_API_KEY: z.string().optional(),
   EMAIL_FROM: z.string().default("Ecodama <onboarding@resend.dev>"),
   APP_URL: z.string().url().default("http://localhost:3000"),
+
+  // Web Push (VAPID). Optional — if missing, push routes still register but
+  // sends become no-ops (logged). Generate with: npx web-push generate-vapid-keys
+  VAPID_PUBLIC_KEY: z.string().optional(),
+  VAPID_PRIVATE_KEY: z.string().optional(),
+  VAPID_SUBJECT: z.string().default("mailto:soporte@ecodama.online"),
 });
 
 const parsed = schema.safeParse(process.env);

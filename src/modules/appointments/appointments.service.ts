@@ -59,6 +59,8 @@ export type CreateAppointmentInput = {
   client: { id?: string; name: string; email?: string | null; phone?: string | null };
   startAt: Date;
   notes?: string | null;
+  // Public bookings are PENDING (awaiting deposit); owner-created walk-ins are CONFIRMED.
+  status?: "PENDING" | "CONFIRMED";
 };
 
 export async function createAppointment(input: CreateAppointmentInput) {
@@ -121,7 +123,7 @@ export async function createAppointment(input: CreateAppointmentInput) {
       durationMin: service.durationMin,
       priceCents: service.priceCents,
       depositCents,
-      status: "PENDING",
+      status: input.status ?? "PENDING",
       notes: input.notes ?? null,
     },
     include: { service: true, stylist: true, client: true },

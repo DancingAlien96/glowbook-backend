@@ -12,6 +12,7 @@ import { staffRoutes } from "../modules/staff/staff.controller.js";
 import { meRoutes } from "../modules/me/me.controller.js";
 import { subscriptionRoutes } from "../modules/subscription/subscription.controller.js";
 import { adminRoutes } from "../modules/admin/admin.controller.js";
+import { pushRoutes } from "../modules/push/push.controller.js";
 
 export const apiRouter = Router();
 
@@ -39,6 +40,9 @@ apiRouter.use("/subscription", subscriptionRoutes);
 
 // Super-admin (platform owner) — list salons, approve/reject subscription payments, settings
 apiRouter.use("/admin", adminRoutes);
+
+// Web Push — VAPID public key (open), subscribe/unsubscribe (authenticated)
+apiRouter.use("/push", pushRoutes);
 
 // Public (no auth)
 apiRouter.use("/public", publicRoutes);
