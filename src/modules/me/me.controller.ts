@@ -1,5 +1,4 @@
 import { Router } from "express";
-import bcrypt from "bcryptjs";
 import { z } from "zod";
 import { asyncHandler } from "../../lib/asyncHandler.js";
 import { validate } from "../../middleware/validate.js";
@@ -36,9 +35,10 @@ meRoutes.get(
   })
 );
 
+// Password changes go through POST /auth/change-password (verifies the current
+// password and revokes other sessions). This route only updates display fields.
 const updateProfileSchema = z.object({
   name: z.string().min(2).max(120).optional(),
-  password: z.string().min(8).max(128).optional(),
 });
 
 meRoutes.patch(
@@ -48,13 +48,8 @@ meRoutes.patch(
     const input = req.body as z.infer<typeof updateProfileSchema>;
 
     await prisma.$transaction(async (tx) => {
-      const userData: Record<string, unknown> = {};
-      if (input.name) userData.name = input.name;
-      if (input.password) userData.passwordHash = await bcrypt.hash(input.password, 12);
-      if (Object.keys(userData).length > 0) {
-        await tx.user.update({ where: { id: req.auth!.sub }, data: userData });
-      }
       if (input.name) {
+        await tx.user.update({ where: { id: req.auth!.sub }, data: { name: input.name } });
         await tx.stylist.update({ where: { id: req.stylistId! }, data: { name: input.name } });
       }
     });

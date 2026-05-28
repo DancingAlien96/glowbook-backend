@@ -88,6 +88,40 @@ export async function refresh(rawToken: string, ctx: TokenContext) {
   );
 }
 
+// Change the authenticated user's password.
+// Verifies the current password, rotates the hash, and revokes every other
+// refresh token so any other logged-in device is forced to re-authenticate.
+// The caller's current refresh token is kept alive so the request that just
+// changed the password doesn't sign itself out.
+export async function changePassword(
+  userId: string,
+  input: { currentPassword: string; newPassword: string },
+  keepRefreshTokenHash?: string
+) {
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { id: true, passwordHash: true },
+  });
+  if (!user) throw Unauthorized("User not found");
+
+  const ok = await bcrypt.compare(input.currentPassword, user.passwordHash);
+  if (!ok) throw Unauthorized("La contraseña actual no coincide.");
+
+  const newHash = await bcrypt.hash(input.newPassword, 12);
+
+  await prisma.$transaction([
+    prisma.user.update({ where: { id: user.id }, data: { passwordHash: newHash } }),
+    prisma.refreshToken.updateMany({
+      where: {
+        userId: user.id,
+        revokedAt: null,
+        ...(keepRefreshTokenHash ? { tokenHash: { not: keepRefreshTokenHash } } : {}),
+      },
+      data: { revokedAt: new Date() },
+    }),
+  ]);
+}
+
 export async function logout(rawToken: string) {
   if (!rawToken) return;
   const tokenHash = hashRefreshToken(rawToken);

@@ -9,3 +9,4 @@ authRoutes.post("/login", ...c.login);
 authRoutes.post("/refresh", c.refresh);
 authRoutes.post("/logout", c.logout);
 authRoutes.get("/me", requireAuth, c.me);
+authRoutes.post("/change-password", requireAuth, ...c.changePassword);

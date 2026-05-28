@@ -2,10 +2,10 @@ import type { Request, Response } from "express";
 import { asyncHandler } from "../../lib/asyncHandler.js";
 import { validate } from "../../middleware/validate.js";
 import { Unauthorized } from "../../lib/errors.js";
-import { loginSchema, registerSchema } from "./auth.schema.js";
+import { changePasswordSchema, loginSchema, registerSchema } from "./auth.schema.js";
 import * as auth from "./auth.service.js";
 import { env } from "../../config/env.js";
-import { parseDuration } from "../../lib/jwt.js";
+import { hashRefreshToken, parseDuration } from "../../lib/jwt.js";
 
 const REFRESH_COOKIE = "gb_refresh";
 // In production the frontend (e.g. Vercel) and the API live on different sites,
@@ -77,3 +77,17 @@ export const me = asyncHandler(async (req, res) => {
   const user = await auth.me(req.auth.sub);
   res.json({ user });
 });
+
+// Authenticated. Verifies the current password, rotates the hash, and revokes
+// every other refresh token (other devices get signed out, the caller stays in).
+export const changePassword = [
+  validate(changePasswordSchema),
+  asyncHandler(async (req, res) => {
+    if (!req.auth) throw Unauthorized();
+    const body = req.body as import("./auth.schema.js").ChangePasswordInput;
+    const currentRefresh = (req.cookies?.[REFRESH_COOKIE] as string | undefined) ?? "";
+    const keepHash = currentRefresh ? hashRefreshToken(currentRefresh) : undefined;
+    await auth.changePassword(req.auth.sub, body, keepHash);
+    res.status(204).end();
+  }),
+];
