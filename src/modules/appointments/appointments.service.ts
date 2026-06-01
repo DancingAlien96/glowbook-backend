@@ -138,6 +138,82 @@ export async function setStatus(salonId: string, id: string, status: Appointment
   return prisma.appointment.update({ where: { id }, data: { status } });
 }
 
+export type UpdateAppointmentInput = {
+  serviceId?: string;
+  stylistId?: string | null;
+  startAt?: Date;
+  notes?: string | null;
+};
+
+/**
+ * Owner-side edit of an existing appointment. Used when the dueña realised
+ * she picked the wrong day, stylist, etc. Re-runs conflict checking against
+ * the *new* slot but excludes the current appointment so the row never
+ * collides with itself.
+ *
+ * If serviceId changes we also rotate durationMin + priceCents to the new
+ * service's values. depositCents intentionally stays put — the deposit was
+ * already collected (or not) based on the original service price and the
+ * dueña shouldn't be able to retroactively change what the client paid.
+ */
+export async function updateAppointment(
+  salonId: string,
+  id: string,
+  input: UpdateAppointmentInput
+) {
+  const existing = await prisma.appointment.findFirst({
+    where: { id, salonId },
+    include: { service: true },
+  });
+  if (!existing) throw NotFound("Appointment not found");
+
+  // Resolve target service (existing or freshly fetched if it changed).
+  let service = existing.service;
+  if (input.serviceId && input.serviceId !== existing.serviceId) {
+    const next = await prisma.service.findFirst({
+      where: { id: input.serviceId, salonId, active: true },
+    });
+    if (!next) throw NotFound("Service not found");
+    service = next;
+  }
+
+  const startAt = input.startAt ?? existing.startAt;
+  const durationMin = service.durationMin;
+  const endAt = new Date(startAt.getTime() + durationMin * 60_000);
+  const stylistId =
+    input.stylistId === undefined ? existing.stylistId : input.stylistId;
+
+  // Slot may have moved or stylist may have changed — re-validate, excluding
+  // this row so it doesn't think it conflicts with itself.
+  await checkConflicts({
+    salonId,
+    stylistId,
+    startAt,
+    endAt,
+    excludeId: id,
+  });
+
+  const updated = await prisma.appointment.update({
+    where: { id },
+    data: {
+      serviceId: service.id,
+      stylistId,
+      startAt,
+      endAt,
+      durationMin,
+      priceCents: service.priceCents,
+      // Clearing the reminder flag so the 30-min push fires again at the
+      // new startAt instead of being skipped because the old time already
+      // got a reminder.
+      reminderSentAt: null,
+      ...(input.notes !== undefined ? { notes: input.notes } : {}),
+    },
+    include: { service: true, stylist: true, client: true },
+  });
+
+  return updated;
+}
+
 export async function listAppointments(params: {
   salonId: string;
   from?: Date;
