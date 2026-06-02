@@ -126,10 +126,13 @@ const createBookingSchema = z.object({
   stylistId: z.string().cuid().optional().nullable(),
   startAt: z.coerce.date(),
   notes: z.string().max(1000).optional().nullable(),
+  // Public flow: name + email + phone all required. The salon needs both
+  // channels to reach the client — email for the booking confirmation, phone
+  // for the day-of reminder over WhatsApp.
   client: z.object({
     name: z.string().min(2).max(120),
     email: z.string().email(),
-    phone: z.string().min(5).max(40).optional().nullable(),
+    phone: z.string().min(5).max(40),
   }),
 });
 

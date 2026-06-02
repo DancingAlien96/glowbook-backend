@@ -21,12 +21,20 @@ const createSchema = z.object({
   stylistId: z.string().cuid().optional().nullable(),
   startAt: z.coerce.date(),
   notes: z.string().max(1000).optional().nullable(),
-  client: z.object({
-    id: z.string().cuid().optional(),
-    name: z.string().min(2).max(120),
-    email: z.string().email().optional().nullable(),
-    phone: z.string().max(40).optional().nullable(),
-  }),
+  // Owner-created (walk-in): name + at least ONE of {email, phone}. Without
+  // a stable identifier we can't dedup the client across visits, so the
+  // dueña ends up with three "María García" rows. Either channel is fine.
+  client: z
+    .object({
+      id: z.string().cuid().optional(),
+      name: z.string().min(2).max(120),
+      email: z.string().email().optional().nullable(),
+      phone: z.string().min(5).max(40).optional().nullable(),
+    })
+    .refine((c) => !!c.id || !!c.email || !!c.phone, {
+      message: "Necesitamos al menos un email o un teléfono para identificar a la clienta.",
+      path: ["phone"],
+    }),
 });
 
 const statusSchema = z.object({

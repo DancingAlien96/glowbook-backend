@@ -90,21 +90,40 @@ export async function createAppointment(input: CreateAppointmentInput) {
       ? Math.round((service.priceCents * salon.depositPercent) / 100)
       : 0;
 
-  // Find or create client
+  // Find or create client. Two-pass dedup:
+  //   1. Email match on the (salonId, email) compound unique index.
+  //   2. Fallback: digits-only phone match — covers walk-ins who only gave
+  //      a phone, and clients who switched email but keep the same WhatsApp.
+  // If both miss, we create a fresh client.
+  const normalizedEmail = input.client.email?.trim().toLowerCase() ?? null;
+  const phoneDigits = input.client.phone?.replace(/\D/g, "") ?? "";
   let clientId = input.client.id;
   if (!clientId) {
-    if (input.client.email) {
+    if (normalizedEmail) {
       const existing = await prisma.client.findUnique({
-        where: { salonId_email: { salonId: input.salonId, email: input.client.email } },
+        where: { salonId_email: { salonId: input.salonId, email: normalizedEmail } },
       });
       if (existing) clientId = existing.id;
+    }
+    if (!clientId && phoneDigits.length >= 5) {
+      // Plain `endsWith` on the digits-only normalised phone catches numbers
+      // saved with/without country code (593987654321 vs 0987654321).
+      const candidates = await prisma.client.findMany({
+        where: { salonId: input.salonId, phone: { not: null } },
+        select: { id: true, phone: true },
+      });
+      const match = candidates.find((c) => {
+        const d = (c.phone ?? "").replace(/\D/g, "");
+        return d.length >= 5 && (d === phoneDigits || d.endsWith(phoneDigits) || phoneDigits.endsWith(d));
+      });
+      if (match) clientId = match.id;
     }
     if (!clientId) {
       const created = await prisma.client.create({
         data: {
           salonId: input.salonId,
           name: input.client.name,
-          email: input.client.email ?? null,
+          email: normalizedEmail,
           phone: input.client.phone ?? null,
         },
       });
