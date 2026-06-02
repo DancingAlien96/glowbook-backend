@@ -105,16 +105,25 @@ export async function createAppointment(input: CreateAppointmentInput) {
       });
       if (existing) clientId = existing.id;
     }
-    if (!clientId && phoneDigits.length >= 5) {
-      // Plain `endsWith` on the digits-only normalised phone catches numbers
-      // saved with/without country code (593987654321 vs 0987654321).
+    // Both sides need at least 8 digits before we trust a suffix match:
+    // shorter numbers collide accidentally (a phone ending in "1234" would
+    // attach the new booking to any client whose phone also ends there),
+    // which is an IDOR-shaped bug — the wrong client gets credited and her
+    // contact details leak into the booking confirmation.
+    const MIN_MATCH_DIGITS = 8;
+    if (!clientId && phoneDigits.length >= MIN_MATCH_DIGITS) {
+      // `endsWith` (in either direction) covers numbers saved with/without
+      // country code: 593987654321 vs 0987654321 vs 987654321.
       const candidates = await prisma.client.findMany({
         where: { salonId: input.salonId, phone: { not: null } },
         select: { id: true, phone: true },
       });
       const match = candidates.find((c) => {
         const d = (c.phone ?? "").replace(/\D/g, "");
-        return d.length >= 5 && (d === phoneDigits || d.endsWith(phoneDigits) || phoneDigits.endsWith(d));
+        return (
+          d.length >= MIN_MATCH_DIGITS &&
+          (d === phoneDigits || d.endsWith(phoneDigits) || phoneDigits.endsWith(d))
+        );
       });
       if (match) clientId = match.id;
     }
