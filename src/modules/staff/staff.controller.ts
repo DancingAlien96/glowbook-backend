@@ -18,6 +18,7 @@ const createSchema = z.object({
   password: z.string().min(8).max(128),
   role: z.enum(["STYLIST", "STAFF"]).default("STYLIST"),
   stylistRole: z.string().max(128).optional().nullable(),
+  commissionPercent: z.number().int().min(0).max(100).optional(),
   serviceIds: z.array(z.string().cuid()).optional(),
 });
 
@@ -25,6 +26,7 @@ const updateSchema = z.object({
   name: z.string().min(2).max(120).optional(),
   stylistRole: z.string().max(128).optional().nullable(),
   active: z.boolean().optional(),
+  commissionPercent: z.number().int().min(0).max(100).optional(),
   serviceIds: z.array(z.string().cuid()).optional(),
 });
 
@@ -50,6 +52,7 @@ staffRoutes.get(
             id: true,
             role: true,
             active: true,
+            commissionPercent: true,
             services: { select: { serviceId: true } },
             hours: { select: { dayOfWeek: true, openMin: true, closeMin: true }, orderBy: { dayOfWeek: "asc" } },
           },
@@ -90,6 +93,7 @@ staffRoutes.post(
             userId: user.id,
             name: input.name,
             role: input.stylistRole ?? null,
+            commissionPercent: input.commissionPercent ?? 0,
             services: input.serviceIds?.length
               ? { create: input.serviceIds.map((serviceId) => ({ serviceId })) }
               : undefined,
@@ -134,6 +138,7 @@ staffRoutes.patch(
         if (input.name !== undefined) stylistData.name = input.name;
         if (input.stylistRole !== undefined) stylistData.role = input.stylistRole;
         if (input.active !== undefined) stylistData.active = input.active;
+        if (input.commissionPercent !== undefined) stylistData.commissionPercent = input.commissionPercent;
         if (Object.keys(stylistData).length > 0) {
           await tx.stylist.update({ where: { id: target.stylist.id }, data: stylistData });
         }

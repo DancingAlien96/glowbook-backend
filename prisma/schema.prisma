@@ -126,6 +126,10 @@ model Stylist {
   name      String
   role      String? @db.VarChar(128)
   active    Boolean @default(true)
+  // Percentage of the service price that goes to the stylist on COMPLETED
+  // appointments. 0 = no commission tracked, 100 = full price. The dueña
+  // edits this from /dashboard/team. Used by /dashboard/commissions.
+  commissionPercent Int @default(0)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
