@@ -8,6 +8,7 @@ import fs from "node:fs";
 
 import { env } from "./config/env.js";
 import { apiRouter } from "./routes/index.js";
+import { recurrenteWebhookRouter } from "./modules/webhooks/recurrente.webhook.js";
 import { errorHandler, notFound } from "./middleware/error.js";
 import { startReminderJob } from "./jobs/reminders.js";
 
@@ -40,6 +41,9 @@ app.use(
     credentials: true,
   })
 );
+// Webhook must receive raw body for Svix signature verification — mount BEFORE express.json()
+app.use("/api/webhooks/recurrente", express.raw({ type: "application/json" }), recurrenteWebhookRouter);
+
 app.use(express.json({ limit: "1mb" }));
 app.use(express.urlencoded({ extended: true, limit: "1mb" }));
 app.use(cookieParser());

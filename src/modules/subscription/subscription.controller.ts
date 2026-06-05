@@ -6,6 +6,7 @@ import { requireAuth, requireRole, requireSalon } from "../../middleware/auth.js
 import { prisma } from "../../lib/prisma.js";
 import { NotFound } from "../../lib/errors.js";
 import { refreshSubscriptionStatus } from "../../lib/billing.js";
+import { env } from "../../config/env.js";
 
 export const subscriptionRoutes = Router();
 subscriptionRoutes.use(requireAuth, requireRole("OWNER"), requireSalon);
@@ -35,6 +36,7 @@ subscriptionRoutes.get(
         lifetimePriceCents: settings?.lifetimePriceCents ?? 66000,
         contactEmail: settings?.contactEmail ?? null,
         contactWhatsapp: settings?.contactWhatsapp ?? null,
+        recurrenteUrl: env.RECURRENTE_SUBSCRIPTION_URL ?? null,
       },
       payments,
     });

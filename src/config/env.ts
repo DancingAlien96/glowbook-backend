@@ -27,6 +27,11 @@ const schema = z.object({
   VAPID_PUBLIC_KEY: z.string().optional(),
   VAPID_PRIVATE_KEY: z.string().optional(),
   VAPID_SUBJECT: z.string().default("mailto:soporte@ecodama.online"),
+
+  // Recurrente payment gateway. Optional — if missing, card payment is disabled.
+  RECURRENTE_SECRET_KEY: z.string().optional(),
+  RECURRENTE_WEBHOOK_SECRET: z.string().optional(), // whsec_... from Svix
+  RECURRENTE_SUBSCRIPTION_URL: z.string().url().optional(), // https://app.recurrente.com/s/...
 });
 
 const parsed = schema.safeParse(process.env);
