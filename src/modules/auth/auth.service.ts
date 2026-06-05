@@ -34,13 +34,38 @@ export async function register(input: RegisterInput, ctx: TokenContext) {
       },
     });
 
-    // Trial subscription: read trialDays from platform settings (default 14).
-    const settings = await tx.platformSettings.findUnique({ where: { id: "default" } });
-    const trialDays = settings?.trialDays ?? 14;
-    const trialEndsAt = new Date(Date.now() + trialDays * 86_400_000);
-    await tx.subscription.create({
-      data: { salonId: salon.id, plan: "MONTHLY", status: "TRIAL", trialEndsAt },
-    });
+    const pending = await tx.pendingActivation.findUnique({ where: { email: input.email.toLowerCase() } });
+
+    if (pending) {
+      const now = new Date();
+      const sub = await tx.subscription.create({
+        data: {
+          salonId: salon.id,
+          plan: pending.plan,
+          status: "ACTIVE",
+          currentPeriodEnd: new Date(now.getTime() + 30 * 86_400_000),
+        },
+      });
+      await tx.subscriptionPayment.create({
+        data: {
+          subscriptionId: sub.id,
+          amountCents: pending.amountCents,
+          periodMonths: 1,
+          status: "APPROVED",
+          reference: pending.reference,
+          reviewedAt: now,
+          reviewedBy: "recurrente-webhook",
+        },
+      });
+      await tx.pendingActivation.delete({ where: { email: input.email.toLowerCase() } });
+    } else {
+      const settings = await tx.platformSettings.findUnique({ where: { id: "default" } });
+      const trialDays = settings?.trialDays ?? 14;
+      const trialEndsAt = new Date(Date.now() + trialDays * 86_400_000);
+      await tx.subscription.create({
+        data: { salonId: salon.id, plan: "MONTHLY", status: "TRIAL", trialEndsAt },
+      });
+    }
 
     return { user, salon };
   });

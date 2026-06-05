@@ -68,7 +68,21 @@ async function handleEvent(event: RecurrenteEvent) {
       });
 
       if (!user?.salon?.subscription) {
-        console.warn(`[recurrente-webhook] No salon found for email: ${email}`);
+        // User hasn't registered yet — store for activation on signup
+        await prisma.pendingActivation.upsert({
+          where: { email: email.toLowerCase() },
+          create: {
+            email: email.toLowerCase(),
+            plan: "MONTHLY",
+            amountCents: amountCents ?? 2000,
+            reference: extractReference(event),
+          },
+          update: {
+            amountCents: amountCents ?? 2000,
+            reference: extractReference(event),
+          },
+        });
+        console.log(`[recurrente-webhook] No account for ${email} — stored PendingActivation`);
         return;
       }
 

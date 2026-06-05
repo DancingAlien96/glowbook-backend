@@ -408,3 +408,18 @@ model PushSubscription {
 
   @@index([userId])
 }
+
+// =========================
+// Pending activations
+// =========================
+// Stores Recurrente payment events for users who pay before registering.
+// On registration, if a record exists for the email, the subscription is
+// activated immediately instead of starting a trial.
+model PendingActivation {
+  id          String   @id @default(cuid())
+  email       String   @unique
+  plan        Plan     @default(MONTHLY)
+  amountCents Int      @default(2000)
+  reference   String?  @db.VarChar(128)
+  createdAt   DateTime @default(now())
+}
