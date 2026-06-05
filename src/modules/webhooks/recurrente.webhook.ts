@@ -51,7 +51,10 @@ recurrenteWebhookRouter.post(
 async function handleEvent(event: RecurrenteEvent) {
   switch (event.type) {
     case "subscription.created":
-    case "payment.completed": {
+    case "subscription.create":
+    case "payment.completed":
+    case "payment.complete":
+    case "payment_intent.succeeded": {
       const email = extractEmail(event);
       if (!email) {
         console.warn("[recurrente-webhook] No customer email in payload — skipping");
@@ -96,7 +99,8 @@ async function handleEvent(event: RecurrenteEvent) {
       break;
     }
 
-    case "subscription.cancelled": {
+    case "subscription.cancelled":
+    case "subscription.cancel": {
       const email = extractEmail(event);
       if (!email) return;
 
@@ -116,7 +120,9 @@ async function handleEvent(event: RecurrenteEvent) {
       break;
     }
 
-    case "payment.failed": {
+    case "payment.failed":
+    case "payment.fail":
+    case "payment_intent.failed": {
       const email = extractEmail(event);
       console.warn(`[recurrente-webhook] Payment failed for: ${email ?? "unknown"}`);
       // No action needed — subscription stays in current state, will expire naturally
@@ -167,10 +173,10 @@ function extractReference(event: RecurrenteEvent): string | null {
 
 interface RecurrenteEvent {
   type:
-    | "subscription.created"
-    | "subscription.cancelled"
-    | "payment.completed"
-    | "payment.failed"
+    | "subscription.created"   | "subscription.create"
+    | "subscription.cancelled" | "subscription.cancel"
+    | "payment.completed"      | "payment.complete"    | "payment_intent.succeeded"
+    | "payment.failed"         | "payment.fail"        | "payment_intent.failed"
     | string;
   data: unknown;
 }
