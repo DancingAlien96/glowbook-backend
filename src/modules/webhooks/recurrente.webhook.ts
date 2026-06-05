@@ -67,6 +67,8 @@ async function handleEvent(event: RecurrenteEvent) {
         include: { salon: { include: { subscription: true } } },
       });
 
+      const amountCents = extractAmountCents(event) ?? 2000;
+
       if (!user?.salon?.subscription) {
         // User hasn't registered yet — store for activation on signup
         await prisma.pendingActivation.upsert({
@@ -74,11 +76,11 @@ async function handleEvent(event: RecurrenteEvent) {
           create: {
             email: email.toLowerCase(),
             plan: "MONTHLY",
-            amountCents: amountCents ?? 2000,
+            amountCents,
             reference: extractReference(event),
           },
           update: {
-            amountCents: amountCents ?? 2000,
+            amountCents,
             reference: extractReference(event),
           },
         });
@@ -87,9 +89,6 @@ async function handleEvent(event: RecurrenteEvent) {
       }
 
       const sub = user.salon.subscription;
-
-      // Create an auto-approved SubscriptionPayment record
-      const amountCents = extractAmountCents(event) ?? 2000; // fallback $20
       await prisma.subscriptionPayment.create({
         data: {
           subscriptionId: sub.id,
