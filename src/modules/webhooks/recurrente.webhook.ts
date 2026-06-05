@@ -3,6 +3,8 @@ import { Webhook } from "svix";
 import { prisma } from "../../lib/prisma.js";
 import { applyApprovedPayment } from "../../lib/billing.js";
 import { env } from "../../config/env.js";
+import { sendEmail } from "../../lib/email.js";
+import { paymentPendingTemplate } from "../../lib/emails/paymentPending.js";
 
 export const recurrenteWebhookRouter = Router();
 
@@ -85,6 +87,7 @@ async function handleEvent(event: RecurrenteEvent) {
           },
         });
         console.log(`[recurrente-webhook] No account for ${email} — stored PendingActivation`);
+        sendEmail({ to: email, ...paymentPendingTemplate({ email }) });
         return;
       }
 

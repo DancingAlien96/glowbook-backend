@@ -8,6 +8,8 @@ import {
 } from "../../lib/jwt.js";
 import { Conflict, Unauthorized } from "../../lib/errors.js";
 import type { LoginInput, RegisterInput } from "./auth.schema.js";
+import { sendEmail } from "../../lib/email.js";
+import { subscriptionActivatedTemplate } from "../../lib/emails/subscriptionActivated.js";
 
 type TokenContext = { userAgent?: string; ipAddress?: string };
 
@@ -20,7 +22,7 @@ export async function register(input: RegisterInput, ctx: TokenContext) {
 
   const passwordHash = await bcrypt.hash(input.password, 12);
 
-  const { user, salon } = await prisma.$transaction(async (tx) => {
+  const { user, salon, activatedPeriodEnd } = await prisma.$transaction(async (tx) => {
     const salon = await tx.salon.create({
       data: { name: input.salonName, slug: input.salonSlug },
     });
@@ -35,15 +37,17 @@ export async function register(input: RegisterInput, ctx: TokenContext) {
     });
 
     const pending = await tx.pendingActivation.findUnique({ where: { email: input.email.toLowerCase() } });
+    let activatedPeriodEnd: Date | null = null;
 
     if (pending) {
       const now = new Date();
+      activatedPeriodEnd = new Date(now.getTime() + 30 * 86_400_000);
       const sub = await tx.subscription.create({
         data: {
           salonId: salon.id,
           plan: pending.plan,
           status: "ACTIVE",
-          currentPeriodEnd: new Date(now.getTime() + 30 * 86_400_000),
+          currentPeriodEnd: activatedPeriodEnd,
         },
       });
       await tx.subscriptionPayment.create({
@@ -67,8 +71,20 @@ export async function register(input: RegisterInput, ctx: TokenContext) {
       });
     }
 
-    return { user, salon };
+    return { user, salon, activatedPeriodEnd };
   });
+
+  if (activatedPeriodEnd) {
+    sendEmail({
+      to: user.email,
+      ...subscriptionActivatedTemplate({
+        ownerName: user.name,
+        salonName: salon.name,
+        email: user.email,
+        periodEnd: activatedPeriodEnd,
+      }),
+    });
+  }
 
   return issueTokens(user.id, user.email, user.role, salon.id, ctx);
 }
