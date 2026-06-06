@@ -5,6 +5,7 @@ import { applyApprovedPayment } from "../../lib/billing.js";
 import { env } from "../../config/env.js";
 import { sendEmail } from "../../lib/email.js";
 import { paymentPendingTemplate } from "../../lib/emails/paymentPending.js";
+import { trialStartedTemplate } from "../../lib/emails/trialStarted.js";
 
 export const recurrenteWebhookRouter = Router();
 
@@ -52,8 +53,36 @@ recurrenteWebhookRouter.post(
 
 async function handleEvent(event: RecurrenteEvent) {
   switch (event.type) {
+    // ── Trial started: card saved, no charge yet ──────────────────────────────
     case "subscription.created":
-    case "subscription.create":
+    case "subscription.create": {
+      const email = extractEmail(event);
+      if (!email) {
+        console.warn("[recurrente-webhook] subscription.create — no email in payload");
+        return;
+      }
+
+      const user = await prisma.user.findFirst({
+        where: { email: email.toLowerCase(), role: "OWNER" },
+      });
+
+      if (!user) {
+        // No account yet — store trial pending so registration activates correctly
+        await prisma.pendingActivation.upsert({
+          where: { email: email.toLowerCase() },
+          create: { email: email.toLowerCase(), plan: "MONTHLY", amountCents: 0, isTrial: true },
+          update: { isTrial: true, amountCents: 0, reference: null },
+        });
+        console.log(`[recurrente-webhook] Trial started for unregistered email: ${email}`);
+        sendEmail({ to: email, ...trialStartedTemplate({ email }) });
+      } else {
+        // Account exists — payment_intent.succeeded in 14 days will activate it
+        console.log(`[recurrente-webhook] Trial started for existing user: ${email}`);
+      }
+      break;
+    }
+
+    // ── Payment received: activate / extend subscription ──────────────────────
     case "payment.completed":
     case "payment.complete":
     case "payment_intent.succeeded": {
@@ -63,7 +92,6 @@ async function handleEvent(event: RecurrenteEvent) {
         return;
       }
 
-      // Find the salon owner by email
       const user = await prisma.user.findFirst({
         where: { email: email.toLowerCase(), role: "OWNER" },
         include: { salon: { include: { subscription: true } } },
@@ -72,21 +100,23 @@ async function handleEvent(event: RecurrenteEvent) {
       const amountCents = extractAmountCents(event) ?? 2000;
 
       if (!user?.salon?.subscription) {
-        // User hasn't registered yet — store for activation on signup
+        // Payment received but no account yet — store for activation on signup
         await prisma.pendingActivation.upsert({
           where: { email: email.toLowerCase() },
           create: {
             email: email.toLowerCase(),
             plan: "MONTHLY",
             amountCents,
+            isTrial: false,
             reference: extractReference(event),
           },
           update: {
             amountCents,
+            isTrial: false,
             reference: extractReference(event),
           },
         });
-        console.log(`[recurrente-webhook] No account for ${email} — stored PendingActivation`);
+        console.log(`[recurrente-webhook] Payment received, no account for ${email} — stored PendingActivation`);
         sendEmail({ to: email, ...paymentPendingTemplate({ email }) });
         return;
       }
@@ -104,7 +134,6 @@ async function handleEvent(event: RecurrenteEvent) {
         },
       });
 
-      // Activate / extend the subscription
       await applyApprovedPayment({
         subscriptionId: sub.id,
         periodMonths: 1,

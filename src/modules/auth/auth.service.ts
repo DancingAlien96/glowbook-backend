@@ -38,8 +38,11 @@ export async function register(input: RegisterInput, ctx: TokenContext) {
 
     const pending = await tx.pendingActivation.findUnique({ where: { email: input.email.toLowerCase() } });
     let activatedPeriodEnd: Date | null = null;
+    const settings = await tx.platformSettings.findUnique({ where: { id: "default" } });
+    const trialDays = settings?.trialDays ?? 14;
 
-    if (pending) {
+    if (pending && !pending.isTrial) {
+      // Card was charged before registration — activate immediately
       const now = new Date();
       activatedPeriodEnd = new Date(now.getTime() + 30 * 86_400_000);
       const sub = await tx.subscription.create({
@@ -61,14 +64,16 @@ export async function register(input: RegisterInput, ctx: TokenContext) {
           reviewedBy: "recurrente-webhook",
         },
       });
-      await tx.pendingActivation.delete({ where: { email: input.email.toLowerCase() } });
     } else {
-      const settings = await tx.platformSettings.findUnique({ where: { id: "default" } });
-      const trialDays = settings?.trialDays ?? 14;
+      // Trial: either no pending, or pending.isTrial=true (card saved, Recurrente charges on day 15)
       const trialEndsAt = new Date(Date.now() + trialDays * 86_400_000);
       await tx.subscription.create({
         data: { salonId: salon.id, plan: "MONTHLY", status: "TRIAL", trialEndsAt },
       });
+    }
+
+    if (pending) {
+      await tx.pendingActivation.delete({ where: { email: input.email.toLowerCase() } });
     }
 
     return { user, salon, activatedPeriodEnd };

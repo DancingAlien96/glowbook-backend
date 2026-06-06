@@ -420,6 +420,7 @@ model PendingActivation {
   email       String   @unique
   plan        Plan     @default(MONTHLY)
   amountCents Int      @default(2000)
+  isTrial     Boolean  @default(false)  // true = subscription.create (card saved, trial started); false = payment received
   reference   String?  @db.VarChar(128)
   createdAt   DateTime @default(now())
 }
