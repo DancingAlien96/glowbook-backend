@@ -6,6 +6,8 @@ import { validate } from "../../middleware/validate.js";
 import { requireAuth, requireRole, requireSalon } from "../../middleware/auth.js";
 import { prisma } from "../../lib/prisma.js";
 import { Conflict, NotFound, BadRequest } from "../../lib/errors.js";
+import { sendEmail } from "../../lib/email.js";
+import { staffInviteTemplate } from "../../lib/emails/staffInvite.js";
 
 export const staffRoutes = Router();
 
@@ -103,6 +105,21 @@ staffRoutes.post(
 
       return user;
     });
+
+    // Fetch salon name and send invitation email
+    const salon = await prisma.salon.findUnique({ where: { id: req.salonId! } });
+    if (salon) {
+      sendEmail({
+        to: member.email,
+        ...staffInviteTemplate({
+          name: member.name,
+          email: member.email,
+          password: input.password,
+          salonName: salon.name,
+          role: member.role as "STYLIST" | "STAFF",
+        }),
+      });
+    }
 
     res.status(201).json({
       member: {
