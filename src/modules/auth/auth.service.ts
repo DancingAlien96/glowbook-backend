@@ -10,6 +10,7 @@ import { Conflict, Unauthorized } from "../../lib/errors.js";
 import type { LoginInput, RegisterInput } from "./auth.schema.js";
 import { sendEmail } from "../../lib/email.js";
 import { subscriptionActivatedTemplate } from "../../lib/emails/subscriptionActivated.js";
+import { welcomeTrialTemplate } from "../../lib/emails/welcomeTrial.js";
 
 type TokenContext = { userAgent?: string; ipAddress?: string };
 
@@ -22,7 +23,7 @@ export async function register(input: RegisterInput, ctx: TokenContext) {
 
   const passwordHash = await bcrypt.hash(input.password, 12);
 
-  const { user, salon, activatedPeriodEnd } = await prisma.$transaction(async (tx) => {
+  const { user, salon, activatedPeriodEnd, trialDays } = await prisma.$transaction(async (tx) => {
     const salon = await tx.salon.create({
       data: { name: input.salonName, slug: input.salonSlug },
     });
@@ -76,7 +77,7 @@ export async function register(input: RegisterInput, ctx: TokenContext) {
       await tx.pendingActivation.delete({ where: { email: input.email.toLowerCase() } });
     }
 
-    return { user, salon, activatedPeriodEnd };
+    return { user, salon, activatedPeriodEnd, trialDays };
   });
 
   if (activatedPeriodEnd) {
@@ -87,6 +88,17 @@ export async function register(input: RegisterInput, ctx: TokenContext) {
         salonName: salon.name,
         email: user.email,
         periodEnd: activatedPeriodEnd,
+      }),
+    });
+  } else {
+    // New registration with trial — send welcome email
+    sendEmail({
+      to: user.email,
+      ...welcomeTrialTemplate({
+        ownerName: user.name,
+        salonName: salon.name,
+        salonSlug: salon.slug,
+        trialDays,
       }),
     });
   }

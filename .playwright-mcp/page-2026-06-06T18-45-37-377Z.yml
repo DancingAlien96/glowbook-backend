@@ -1,0 +1,629 @@
+- generic [active] [ref=e1]:
+  - banner [ref=e2]:
+    - navigation [ref=e4]:
+      - link "Ecodama" [ref=e5] [cursor=pointer]:
+        - /url: /
+        - img "Ecodama" [ref=e6]
+      - button "Menú" [ref=e8]:
+        - img [ref=e9]
+  - main [ref=e11]:
+    - generic [ref=e16]:
+      - generic [ref=e17]:
+        - generic [ref=e18]: Nueva era para tu salón
+        - heading "La agenda premium para tu salón de belleza." [level=1] [ref=e20]:
+          - text: La agenda
+          - emphasis [ref=e21]: premium
+          - text: para tu salón de belleza.
+        - paragraph [ref=e22]: Ecodama es el sistema de citas elegante, intuitivo y refinado para salones, spas y profesionales del cuidado personal. Reservas sin fricción, pagos anticipados y una experiencia que tus clientas recordarán.
+        - generic [ref=e23]:
+          - link "Crear mi salón" [ref=e24] [cursor=pointer]:
+            - /url: /register
+            - text: Crear mi salón
+            - img [ref=e25]
+          - link "Ver demo" [ref=e27] [cursor=pointer]:
+            - /url: "#mockups"
+            - img [ref=e28]
+            - text: Ver demo
+        - paragraph [ref=e30]: ✦ También ideal para spas, centros de estética y nail studios.
+        - generic [ref=e31]:
+          - generic [ref=e38]:
+            - strong [ref=e39]: +2,400
+            - text: salones confían en Ecodama
+          - generic [ref=e40]:
+            - img [ref=e41]
+            - img [ref=e43]
+            - img [ref=e45]
+            - img [ref=e47]
+            - img [ref=e49]
+            - generic [ref=e51]: 4.9 · 800+ reseñas
+      - img "Profesional de la belleza en su salón" [ref=e56]
+    - generic [ref=e59]:
+      - paragraph [ref=e60]: Salones, spas y estudios que confían en Ecodama
+      - generic [ref=e62]:
+        - generic [ref=e63]: MAISON ROSÉ
+        - generic [ref=e64]: AURA · spa
+        - generic [ref=e65]: Bella & Lirio
+        - generic [ref=e66]: STUDIO NUDE
+        - generic [ref=e67]: LUNA NAILS
+        - generic [ref=e68]: PETALA
+        - generic [ref=e69]: Casa Glow
+        - generic [ref=e70]: Mariposa Studio
+        - generic [ref=e71]: MAISON ROSÉ
+        - generic [ref=e72]: AURA · spa
+        - generic [ref=e73]: Bella & Lirio
+        - generic [ref=e74]: STUDIO NUDE
+        - generic [ref=e75]: LUNA NAILS
+        - generic [ref=e76]: PETALA
+        - generic [ref=e77]: Casa Glow
+        - generic [ref=e78]: Mariposa Studio
+    - generic [ref=e80]:
+      - generic [ref=e81]:
+        - generic [ref=e82]: Todo lo que tu salón necesita
+        - heading "Diseñado con el detalle de una marca de lujo." [level=2] [ref=e83]:
+          - text: Diseñado con el detalle de una
+          - emphasis [ref=e84]: marca de lujo
+          - text: .
+        - paragraph [ref=e85]: "Más que un sistema de reservas: una plataforma completa pensada para elevar la experiencia de tus clientas y simplificar tu día a día."
+      - generic [ref=e86]:
+        - article [ref=e87]:
+          - img [ref=e89]
+          - heading "Calendario inteligente" [level=3] [ref=e93]
+          - paragraph [ref=e94]: Gestiona citas, bloqueos y disponibilidad con una vista limpia, intuitiva y siempre en sincronía.
+          - generic [ref=e95]:
+            - generic [ref=e96]: Conocer más
+            - img [ref=e97]
+        - article [ref=e99]:
+          - img [ref=e101]
+          - heading "Experiencia premium" [level=3] [ref=e103]
+          - paragraph [ref=e104]: Cada interacción —desde reservar hasta pagar— se siente refinada, rápida y digna de una marca de lujo.
+          - generic [ref=e105]:
+            - generic [ref=e106]: Conocer más
+            - img [ref=e107]
+        - article [ref=e109]:
+          - img [ref=e111]
+          - heading "Anticipo por transferencia" [level=3] [ref=e114]
+          - paragraph [ref=e115]: Asegura cada cita con un anticipo bancario. Tu clienta sube el comprobante y tú lo apruebas en un toque desde el panel.
+          - generic [ref=e116]:
+            - generic [ref=e117]: Conocer más
+            - img [ref=e118]
+        - article [ref=e120]:
+          - img [ref=e122]
+          - heading "Ficha de clientas" [level=3] [ref=e125]
+          - paragraph [ref=e126]: Historial, preferencias, notas y servicios anteriores en una ficha elegante que tu equipo puede consultar.
+          - generic [ref=e127]:
+            - generic [ref=e128]: Conocer más
+            - img [ref=e129]
+        - article [ref=e131]:
+          - img [ref=e133]
+          - heading "Reservas móviles" [level=3] [ref=e136]
+          - paragraph [ref=e137]: "Tus clientas reservan desde el celular en segundos: eligen servicio, estilista, fecha y pagan."
+          - generic [ref=e138]:
+            - generic [ref=e139]: Conocer más
+            - img [ref=e140]
+        - article [ref=e142]:
+          - img [ref=e144]
+          - heading "Métricas en vivo" [level=3] [ref=e146]
+          - paragraph [ref=e147]: Ingresos, ocupación, retención y servicios estrella. Decide con datos, no con intuición.
+          - generic [ref=e148]:
+            - generic [ref=e149]: Conocer más
+            - img [ref=e150]
+    - generic [ref=e154]:
+      - generic [ref=e155]:
+        - generic [ref=e156]: Cómo funciona
+        - heading "Tres pasos para transformar tu agenda." [level=2] [ref=e157]
+        - paragraph [ref=e158]: Sin instalaciones, sin contratos largos, sin curva de aprendizaje. Listo en una tarde.
+      - generic [ref=e159]:
+        - generic [ref=e160]:
+          - generic [ref=e162]: "01"
+          - heading "Configura tu salón" [level=3] [ref=e164]
+          - paragraph [ref=e165]: Crea servicios, define duración, precios y reglas de anticipo. En 5 minutos estás listo.
+          - generic [ref=e167]:
+            - generic [ref=e168]:
+              - generic [ref=e169]:
+                - generic [ref=e170]: Servicio
+                - generic [ref=e171]: Corte + tratamiento capilar
+              - generic [ref=e172]: $45
+            - generic [ref=e173]:
+              - generic [ref=e174]:
+                - generic [ref=e175]: Servicio
+                - generic [ref=e176]: Maquillaje social
+              - generic [ref=e177]: $60
+            - generic [ref=e179]:
+              - generic [ref=e180]: Anticipo
+              - generic [ref=e181]: 30% requerido
+        - generic [ref=e184]:
+          - generic [ref=e186]: "02"
+          - heading "Comparte tu enlace" [level=3] [ref=e188]
+          - paragraph [ref=e189]: Tu salón obtiene una página de reservas única, elegante y optimizada para móvil.
+          - generic [ref=e191]:
+            - generic [ref=e192]:
+              - text: ecodama.online/
+              - generic [ref=e194]: tu-salon
+            - generic [ref=e195]:
+              - generic [ref=e196]:
+                - generic [ref=e197]: Compartir
+                - generic [ref=e198]: WhatsApp
+              - generic [ref=e199]:
+                - generic [ref=e200]: Compartir
+                - generic [ref=e201]: Instagram
+              - generic [ref=e202]:
+                - generic [ref=e203]: Compartir
+                - generic [ref=e204]: QR
+        - generic [ref=e205]:
+          - generic [ref=e207]: "03"
+          - heading "Recibe reservas y pagos" [level=3] [ref=e209]
+          - paragraph [ref=e210]: Tus clientas eligen servicio, fecha, estilista y pagan el anticipo. Tú recibes todo confirmado.
+          - generic [ref=e212]:
+            - generic [ref=e213]:
+              - generic [ref=e214]: C
+              - generic [ref=e215]:
+                - generic [ref=e216]: Camila P.
+                - generic [ref=e217]: Pedicure spa · 10:30
+              - generic [ref=e218]: confirmed
+            - generic [ref=e219]:
+              - generic [ref=e220]: A
+              - generic [ref=e221]:
+                - generic [ref=e222]: Antonia R.
+                - generic [ref=e223]: Color + corte · 13:00
+              - generic [ref=e224]: pending
+            - generic [ref=e225]:
+              - generic [ref=e226]: S
+              - generic [ref=e227]:
+                - generic [ref=e228]: Sofía L.
+                - generic [ref=e229]: Cejas perfectas · 16:00
+              - generic [ref=e230]: confirmed
+    - generic [ref=e232]:
+      - generic [ref=e233]:
+        - generic [ref=e234]: Tu panel administrativo
+        - heading "Toda tu operación, elegante y al instante." [level=2] [ref=e235]:
+          - text: Toda tu operación,
+          - emphasis [ref=e236]: elegante y al instante
+          - text: .
+        - paragraph [ref=e237]: "Un dashboard premium pensado para dueñas de salones: claridad visual, decisiones rápidas y cero ruido."
+      - generic [ref=e238]:
+        - generic [ref=e239]:
+          - generic [ref=e245]: ecodama.online/dashboard
+          - generic [ref=e246]:
+            - generic [ref=e247]:
+              - generic [ref=e248]:
+                - generic [ref=e249]: Bienvenida
+                - heading "Hola, Isabella ✨" [level=3] [ref=e250]
+              - button "Nueva cita" [ref=e251]
+            - generic [ref=e252]:
+              - generic [ref=e253]:
+                - generic [ref=e254]: Citas hoy
+                - generic [ref=e255]: "12"
+                - generic [ref=e256]: +3 vs ayer
+              - generic [ref=e257]:
+                - generic [ref=e258]: Ingresos hoy
+                - generic [ref=e259]: $486
+                - generic [ref=e260]: +18% vs ayer
+              - generic [ref=e261]:
+                - generic [ref=e262]: Ocupación
+                - generic [ref=e263]: 78%
+                - generic [ref=e264]: +5% vs ayer
+              - generic [ref=e265]:
+                - generic [ref=e266]: Nuevas clientas
+                - generic [ref=e267]: "5"
+                - generic [ref=e268]: +2 vs ayer
+            - generic [ref=e269]:
+              - generic [ref=e270]:
+                - generic [ref=e271]:
+                  - generic [ref=e272]: Ingresos · últimos 7 días
+                  - generic [ref=e273]: $3,240
+                - generic [ref=e274]:
+                  - generic [ref=e275]: 7D
+                  - generic [ref=e276]: 30D
+                  - generic [ref=e277]: 90D
+              - generic [ref=e278]:
+                - generic [ref=e280]: L
+                - generic [ref=e282]: M
+                - generic [ref=e284]: M
+                - generic [ref=e286]: J
+                - generic [ref=e288]: V
+                - generic [ref=e290]: S
+                - generic [ref=e292]: D
+            - generic [ref=e293]:
+              - generic [ref=e294]:
+                - generic [ref=e295]: Reservas recientes
+                - generic [ref=e296]: Ver todas →
+              - generic [ref=e297]:
+                - generic [ref=e298]:
+                  - generic [ref=e299]: MS
+                  - generic [ref=e300]:
+                    - generic [ref=e301]: Mariana Sosa
+                    - generic [ref=e302]: Pestañas pelo a pelo
+                  - generic [ref=e303]: 11:30
+                  - generic [ref=e304]: Confirmada
+                - generic [ref=e305]:
+                  - generic [ref=e306]: LB
+                  - generic [ref=e307]:
+                    - generic [ref=e308]: Lucía Bravo
+                    - generic [ref=e309]: Manicure francés
+                  - generic [ref=e310]: 12:45
+                  - generic [ref=e311]: Pendiente
+                - generic [ref=e312]:
+                  - generic [ref=e313]: BR
+                  - generic [ref=e314]:
+                    - generic [ref=e315]: Bianca Reyes
+                    - generic [ref=e316]: Color premium
+                  - generic [ref=e317]: 14:00
+                  - generic [ref=e318]: Confirmada
+        - generic [ref=e319]:
+          - generic [ref=e320]:
+            - generic [ref=e321]:
+              - generic [ref=e322]:
+                - generic [ref=e323]: Mayo · 2026
+                - generic [ref=e324]: Vista semanal
+              - generic [ref=e325]:
+                - button [ref=e326]:
+                  - img [ref=e327]
+                - button [ref=e329]:
+                  - img [ref=e330]
+            - generic [ref=e332]:
+              - generic [ref=e333]: L
+              - generic [ref=e334]: M
+              - generic [ref=e335]: M
+              - generic [ref=e336]: J
+              - generic [ref=e337]: V
+              - generic [ref=e338]: S
+              - generic [ref=e339]: D
+            - generic [ref=e340]:
+              - generic [ref=e344]: "1"
+              - generic [ref=e345]: "2"
+              - generic [ref=e346]: "3"
+              - generic [ref=e347]: "4"
+              - generic [ref=e348]: "5"
+              - generic [ref=e349]: "6"
+              - generic [ref=e351]: "7"
+              - generic [ref=e352]: "8"
+              - generic [ref=e354]: "9"
+              - generic [ref=e355]: "10"
+              - generic [ref=e356]: "11"
+              - generic [ref=e357]: "12"
+              - generic [ref=e359]: "13"
+              - generic [ref=e360]: "14"
+              - generic [ref=e361]: "15"
+              - generic [ref=e362]: "16"
+              - generic [ref=e363]: "17"
+              - generic [ref=e365]: "18"
+              - generic [ref=e366]: "19"
+              - generic [ref=e368]: "20"
+              - generic [ref=e369]: "21"
+              - generic [ref=e370]: "22"
+              - generic [ref=e372]: "23"
+              - generic [ref=e373]: "24"
+              - generic [ref=e375]: "25"
+              - generic [ref=e376]: "26"
+              - generic [ref=e377]: "27"
+              - generic [ref=e379]: "28"
+              - generic [ref=e380]: "29"
+              - generic [ref=e381]: "30"
+              - generic [ref=e382]: "31"
+          - generic [ref=e384]:
+            - generic [ref=e385]:
+              - generic [ref=e386]:
+                - generic [ref=e387]: Pagos por confirmar
+                - generic [ref=e388]: Comprobantes
+              - generic [ref=e389]: 3 nuevos
+            - generic [ref=e390]:
+              - generic [ref=e391]:
+                - img [ref=e393]
+                - generic [ref=e397]:
+                  - generic [ref=e398]: Daniela V.
+                  - generic [ref=e399]: Transferencia · $24.00
+                - generic [ref=e400]:
+                  - button [ref=e401]:
+                    - img [ref=e402]
+                  - button [ref=e404]:
+                    - img [ref=e405]
+              - generic [ref=e407]:
+                - img [ref=e409]
+                - generic [ref=e413]:
+                  - generic [ref=e414]: Renata M.
+                  - generic [ref=e415]: Yape · $18.00
+                - generic [ref=e416]:
+                  - button [ref=e417]:
+                    - img [ref=e418]
+                  - button [ref=e420]:
+                    - img [ref=e421]
+    - generic [ref=e425]:
+      - generic [ref=e426]:
+        - generic [ref=e427]: Lo que dicen
+        - heading "Confianza de las dueñas de salones más exigentes." [level=2] [ref=e428]:
+          - text: Confianza de las dueñas de salones
+          - emphasis [ref=e429]: más exigentes
+          - text: .
+      - generic [ref=e430]:
+        - figure "C Catalina Ríos Fundadora · Maison Rosé" [ref=e431]:
+          - generic [ref=e432]: “
+          - generic [ref=e433]:
+            - img [ref=e434]
+            - img [ref=e436]
+            - img [ref=e438]
+            - img [ref=e440]
+            - img [ref=e442]
+          - blockquote [ref=e444]: "Ecodama transformó por completo cómo mis clientas reservan. La interfaz se siente como una experiencia spa: delicada, elegante y sin fricción."
+          - generic [ref=e445]:
+            - generic [ref=e446]: C
+            - generic [ref=e447]:
+              - generic [ref=e448]: Catalina Ríos
+              - generic [ref=e449]: Fundadora · Maison Rosé
+        - figure "V Valentina Soto Owner · Studio Nude Nails" [ref=e450]:
+          - generic [ref=e451]: “
+          - generic [ref=e452]:
+            - img [ref=e453]
+            - img [ref=e455]
+            - img [ref=e457]
+            - img [ref=e459]
+            - img [ref=e461]
+          - blockquote [ref=e463]: Los anticipos automáticos redujeron mis cancelaciones de última hora un 70%. Vale cada peso. Mi equipo lo aprendió en una tarde.
+          - generic [ref=e464]:
+            - generic [ref=e465]: V
+            - generic [ref=e466]:
+              - generic [ref=e467]: Valentina Soto
+              - generic [ref=e468]: Owner · Studio Nude Nails
+        - figure "C Camila Restrepo Beauty expert · Aura Spa" [ref=e469]:
+          - generic [ref=e470]: “
+          - generic [ref=e471]:
+            - img [ref=e472]
+            - img [ref=e474]
+            - img [ref=e476]
+            - img [ref=e478]
+            - img [ref=e480]
+          - blockquote [ref=e482]: Por fin un sistema que entiende la estética del mundo de la belleza. Calendly y similares se sentían demasiado fríos para mi marca.
+          - generic [ref=e483]:
+            - generic [ref=e484]: C
+            - generic [ref=e485]:
+              - generic [ref=e486]: Camila Restrepo
+              - generic [ref=e487]: Beauty expert · Aura Spa
+        - figure "A Andrea Mendoza Maquilladora profesional" [ref=e488]:
+          - generic [ref=e489]: “
+          - generic [ref=e490]:
+            - img [ref=e491]
+            - img [ref=e493]
+            - img [ref=e495]
+            - img [ref=e497]
+            - img [ref=e499]
+          - blockquote [ref=e501]: Mis clientas me dicen ‘qué bonita tu página de reservas’. Eso no me lo decían antes. Ecodama se siente como una extensión de mi salón.
+          - generic [ref=e502]:
+            - generic [ref=e503]: A
+            - generic [ref=e504]:
+              - generic [ref=e505]: Andrea Mendoza
+              - generic [ref=e506]: Maquilladora profesional
+    - generic [ref=e508]:
+      - generic [ref=e509]:
+        - generic [ref=e510]: Planes simples
+        - heading "Una inversión que paga sola la primera semana." [level=2] [ref=e511]
+        - paragraph [ref=e512]: Elige cómo prefieres pagar. Sin compromisos, sin sorpresas, sin costos ocultos.
+      - generic [ref=e513]:
+        - generic [ref=e514]:
+          - generic [ref=e515]:
+            - generic [ref=e516]: Mensual
+            - generic [ref=e517]: Flexibilidad total
+          - heading "Plan Glow" [level=3] [ref=e518]
+          - paragraph [ref=e519]: Para empezar sin compromisos largos.
+          - generic [ref=e520]:
+            - generic [ref=e521]: $20
+            - generic [ref=e522]: USD / mes
+          - generic [ref=e523]: 14 días gratis · sin tarjeta · cancela cuando quieras.
+          - link "Empezar gratis — 14 días" [ref=e524] [cursor=pointer]:
+            - /url: /register
+          - list [ref=e525]:
+            - listitem [ref=e526]:
+              - img [ref=e527]
+              - text: Calendario y reservas ilimitadas
+            - listitem [ref=e529]:
+              - img [ref=e530]
+              - text: Página de reservas personalizada
+            - listitem [ref=e532]:
+              - img [ref=e533]
+              - text: Anticipos configurables (% o total)
+            - listitem [ref=e535]:
+              - img [ref=e536]
+              - text: Recordatorios automáticos por email
+            - listitem [ref=e538]:
+              - img [ref=e539]
+              - text: Panel de clientas e historial
+            - listitem [ref=e541]:
+              - img [ref=e542]
+              - text: Métricas e ingresos en vivo
+            - listitem [ref=e544]:
+              - img [ref=e545]
+              - text: Soporte premium 7 días a la semana
+        - generic [ref=e549]:
+          - generic [ref=e551]:
+            - generic [ref=e552]: Recomendado
+            - generic [ref=e554]: Ahorra +60%
+          - heading "Plan Lifetime" [level=3] [ref=e555]
+          - paragraph [ref=e556]: Un solo pago, acceso de por vida.
+          - generic [ref=e557]:
+            - generic [ref=e558]: $660
+            - generic [ref=e559]: USD una vez
+          - generic [ref=e560]: ≈ 2.75 años del plan mensual.
+          - link "Quiero acceso de por vida" [ref=e561] [cursor=pointer]:
+            - /url: https://wa.me/50233074483?text=Hola%20Ecodama%2C%20me%20interesa%20el%20plan%20Lifetime%20(%24660%20USD).%20%C2%BFC%C3%B3mo%20puedo%20adquirirlo%3F
+            - text: Quiero acceso de por vida
+            - img [ref=e562]
+          - list [ref=e564]:
+            - listitem [ref=e565]:
+              - img [ref=e566]
+              - text: Calendario y reservas ilimitadas
+            - listitem [ref=e568]:
+              - img [ref=e569]
+              - text: Página de reservas personalizada
+            - listitem [ref=e571]:
+              - img [ref=e572]
+              - text: Anticipos configurables (% o total)
+            - listitem [ref=e574]:
+              - img [ref=e575]
+              - text: Recordatorios automáticos por email
+            - listitem [ref=e577]:
+              - img [ref=e578]
+              - text: Panel de clientas e historial
+            - listitem [ref=e580]:
+              - img [ref=e581]
+              - text: Métricas e ingresos en vivo
+            - listitem [ref=e583]:
+              - img [ref=e584]
+              - text: Soporte premium 7 días a la semana
+            - listitem [ref=e586]:
+              - img [ref=e587]
+              - text: Actualizaciones gratuitas para siempre
+            - listitem [ref=e589]:
+              - img [ref=e590]
+              - text: Acceso anticipado a nuevas funciones
+      - paragraph [ref=e592]:
+        - text: Pago seguro con tarjeta de débito o crédito ·
+        - link "Solicitar demo gratuita" [ref=e593] [cursor=pointer]:
+          - /url: https://wa.me/50233074483?text=Hola%20Ecodama%2C%20me%20gustar%C3%ADa%20solicitar%20una%20demo%20gratuita%20de%20la%20plataforma.
+        - text: · Garantía 30 días
+    - generic [ref=e595]:
+      - generic [ref=e596]:
+        - generic [ref=e597]: Preguntas frecuentes
+        - heading "Todo lo que necesitas saber." [level=2] [ref=e598]
+      - generic [ref=e599]:
+        - generic [ref=e600]:
+          - button "¿Cómo cobran mis clientas el anticipo?" [ref=e601]:
+            - generic [ref=e602]: ¿Cómo cobran mis clientas el anticipo?
+            - img [ref=e604]
+          - paragraph [ref=e608]: Por transferencia bancaria. Tú defines los datos de tu cuenta (banco, número, nombre, RUC) en los ajustes del salón. Tu clienta los ve al reservar, transfiere y sube el comprobante. Tú lo apruebas en un toque desde el panel y la cita queda confirmada.
+        - generic [ref=e609]:
+          - button "¿Y si la clienta sube un comprobante falso?" [ref=e610]:
+            - generic [ref=e611]: ¿Y si la clienta sube un comprobante falso?
+            - img [ref=e613]
+          - paragraph [ref=e615]: Tú apruebas cada comprobante manualmente antes de que la cita pase a confirmada. La imagen queda guardada en tu historial — si algo no cuadra, rechazas el pago con un motivo y la clienta es notificada.
+        - generic [ref=e616]:
+          - button "¿Aceptan pagos con tarjeta de crédito o débito?" [ref=e617]:
+            - generic [ref=e618]: ¿Aceptan pagos con tarjeta de crédito o débito?
+            - img [ref=e620]
+          - paragraph [ref=e622]: Sí. La suscripción a Ecodama se paga con tarjeta de débito o crédito a través de Recurrente, nuestra pasarela de pago segura. El proceso toma menos de 2 minutos — ingresas tus datos de tarjeta, se procesa el cargo y tu cuenta queda activa de inmediato.
+        - generic [ref=e623]:
+          - button "¿Funciona para spas y centros de estética con varios profesionales?" [ref=e624]:
+            - generic [ref=e625]: ¿Funciona para spas y centros de estética con varios profesionales?
+            - img [ref=e627]
+          - paragraph [ref=e629]: Por supuesto. Crea cuentas para cada estilista — ellas inician sesión en su propio portal, ven solo sus citas y las marcan como confirmadas o completadas. Tú monitoreas todo desde tu panel.
+        - generic [ref=e630]:
+          - button "¿Las clientas reciben confirmaciones y recordatorios?" [ref=e631]:
+            - generic [ref=e632]: ¿Las clientas reciben confirmaciones y recordatorios?
+            - img [ref=e634]
+          - paragraph [ref=e636]: Tu clienta recibe confirmación inmediata al reservar y un email de aprobación cuando validas su comprobante. Recordatorios automáticos por email 24h y 2h antes de la cita. WhatsApp está en versión beta.
+        - generic [ref=e637]:
+          - button "¿Qué pasa si una clienta no asiste?" [ref=e638]:
+            - generic [ref=e639]: ¿Qué pasa si una clienta no asiste?
+            - img [ref=e641]
+          - paragraph [ref=e643]: Como ya cobraste el anticipo por transferencia, parte del costo está cubierto. Puedes marcarla como 'No asistió' desde el panel y queda en su ficha para futuras decisiones de reserva.
+        - generic [ref=e644]:
+          - button "¿Cómo se paga la suscripción de Ecodama?" [ref=e645]:
+            - generic [ref=e646]: ¿Cómo se paga la suscripción de Ecodama?
+            - img [ref=e648]
+          - paragraph [ref=e650]: Con tarjeta de débito o crédito directamente desde tu panel de Ecodama. Una vez registrada, vas a Facturación, haces clic en 'Pagar con tarjeta' y completas el pago en nuestra pasarela segura. El plan Lifetime ($660 USD pago único) también está disponible — escríbenos por WhatsApp para coordinarlo.
+      - paragraph [ref=e651]:
+        - text: ¿Otra pregunta?
+        - link "Escríbenos por WhatsApp" [ref=e652] [cursor=pointer]:
+          - /url: https://wa.me/50233074483?text=Hola%20Ecodama%2C%20necesito%20ayuda%20con%20mi%20sal%C3%B3n.
+        - text: y te respondemos al instante.
+    - generic [ref=e659]:
+      - generic [ref=e660]: Listo para elevar tu salón
+      - heading "Empieza hoy. Brilla mañana." [level=2] [ref=e662]:
+        - text: Empieza hoy.
+        - emphasis [ref=e663]: Brilla mañana.
+      - paragraph [ref=e664]: Únete a las +2,400 dueñas de salones que ya eligieron Ecodama para ofrecer una experiencia premium a sus clientas.
+      - generic [ref=e665]:
+        - link "Crear mi salón" [ref=e666] [cursor=pointer]:
+          - /url: /register
+          - text: Crear mi salón
+          - img [ref=e667]
+        - link "Ver una página de reservas" [ref=e669] [cursor=pointer]:
+          - /url: /book/maison-rose
+        - link "Hablar con soporte" [ref=e670] [cursor=pointer]:
+          - /url: https://wa.me/50233074483?text=Hola%20Ecodama%2C%20quiero%20activar%20mi%20sal%C3%B3n%20en%20la%20plataforma.
+          - img [ref=e671]
+          - text: Hablar con soporte
+      - generic [ref=e673]:
+        - generic [ref=e674]: ✦ Activación por transferencia
+        - link "✦ Soporte personalizado" [ref=e675] [cursor=pointer]:
+          - /url: https://wa.me/50233074483?text=Hola%20Ecodama%2C%20necesito%20ayuda%20con%20mi%20sal%C3%B3n.
+        - generic [ref=e676]: ✦ Cancela cuando quieras
+  - contentinfo [ref=e677]:
+    - generic [ref=e678]:
+      - generic [ref=e679]:
+        - generic [ref=e680]:
+          - link "Ecodama" [ref=e681] [cursor=pointer]:
+            - /url: /
+            - img "Ecodama" [ref=e682]
+          - paragraph [ref=e683]: La plataforma premium de reservas para salones de belleza, spas y profesionales del cuidado personal.
+          - generic [ref=e684]:
+            - text: Recibe novedades y consejos
+            - generic [ref=e685]:
+              - textbox "tu@email.com" [ref=e686]
+              - button "Suscribirme" [ref=e687]
+            - paragraph [ref=e688]: Sin spam. Cancela cuando quieras.
+        - generic [ref=e689]:
+          - generic [ref=e690]:
+            - generic [ref=e691]: Producto
+            - list [ref=e692]:
+              - listitem [ref=e693]:
+                - link "Funciones" [ref=e694] [cursor=pointer]:
+                  - /url: "#features"
+              - listitem [ref=e695]:
+                - link "Precios" [ref=e696] [cursor=pointer]:
+                  - /url: "#pricing"
+              - listitem [ref=e697]:
+                - link "Tour del producto" [ref=e698] [cursor=pointer]:
+                  - /url: "#mockups"
+              - listitem [ref=e699]:
+                - link "Demo de reserva" [ref=e700] [cursor=pointer]:
+                  - /url: /book/maison-rose
+          - generic [ref=e701]:
+            - generic [ref=e702]: Recursos
+            - list [ref=e703]:
+              - listitem [ref=e704]:
+                - link "Centro de ayuda" [ref=e705] [cursor=pointer]:
+                  - /url: https://wa.me/50233074483?text=Hola%20Ecodama%2C%20necesito%20ayuda%20con%20mi%20sal%C3%B3n.
+                  - text: Centro de ayuda
+                  - img [ref=e706]
+              - listitem [ref=e708]:
+                - link "Guía para fundadoras" [ref=e709] [cursor=pointer]:
+                  - /url: "#"
+              - listitem [ref=e710]:
+                - link "Casos de éxito" [ref=e711] [cursor=pointer]:
+                  - /url: "#"
+              - listitem [ref=e712]:
+                - link "Cambios y novedades" [ref=e713] [cursor=pointer]:
+                  - /url: "#"
+          - generic [ref=e714]:
+            - generic [ref=e715]: Compañía
+            - list [ref=e716]:
+              - listitem [ref=e717]:
+                - link "Sobre nosotros" [ref=e718] [cursor=pointer]:
+                  - /url: "#"
+              - listitem [ref=e719]:
+                - link "Contacto" [ref=e720] [cursor=pointer]:
+                  - /url: https://wa.me/50233074483?text=Hola%20Ecodama%2C%20necesito%20ayuda%20con%20mi%20sal%C3%B3n.
+                  - text: Contacto
+                  - img [ref=e721]
+              - listitem [ref=e723]:
+                - link "Términos" [ref=e724] [cursor=pointer]:
+                  - /url: "#"
+              - listitem [ref=e725]:
+                - link "Privacidad" [ref=e726] [cursor=pointer]:
+                  - /url: "#"
+      - generic [ref=e727]:
+        - generic [ref=e728]:
+          - generic [ref=e729]: ¿Necesitas ayuda?
+          - generic [ref=e730]: Escríbenos directo por WhatsApp
+          - generic [ref=e731]: +502 3307 4483
+        - link "Abrir WhatsApp" [ref=e732] [cursor=pointer]:
+          - /url: https://wa.me/50233074483?text=Hola%20Ecodama%2C%20necesito%20ayuda%20con%20mi%20sal%C3%B3n.
+          - img [ref=e733]
+          - text: Abrir WhatsApp
+      - generic [ref=e736]:
+        - generic [ref=e737]: © 2026 Ecodama. Hecho con ✦ para salones premium.
+        - generic [ref=e738]:
+          - link "Instagram" [ref=e739] [cursor=pointer]:
+            - /url: "#"
+          - link "TikTok" [ref=e740] [cursor=pointer]:
+            - /url: "#"
+          - link "Pinterest" [ref=e741] [cursor=pointer]:
+            - /url: "#"

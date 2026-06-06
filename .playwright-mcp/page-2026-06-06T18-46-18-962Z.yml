@@ -1,0 +1,19 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e2]:
+    - heading "KPI Demo - Mobile View" [level=1] [ref=e3]
+    - generic [ref=e4]:
+      - generic [ref=e5]:
+        - generic [ref=e6]: Citas hoy
+        - generic "12" [ref=e7]
+      - generic [ref=e8]:
+        - generic [ref=e9]: Ingresos semana
+        - generic "$486" [ref=e10]
+      - generic [ref=e11]:
+        - generic [ref=e12]: Ocupación
+        - generic "78%" [ref=e13]
+      - generic [ref=e14]:
+        - generic [ref=e15]: Nuevas clientas (7d)
+        - generic "5" [ref=e16]
+    - paragraph [ref=e17]: View this on mobile (375px width) to verify the KPI cards fit properly without text overflow.
+  - button "Open Next.js Dev Tools" [ref=e23] [cursor=pointer]:
+    - img [ref=e24]
