@@ -1,0 +1,71 @@
+name: Deploy to Production
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    name: Deploy via Ansible
+    runs-on: ubuntu-latest
+    environment: production
+
+    steps:
+      - name: Checkout backend code
+        uses: actions/checkout@v4
+
+      - name: Checkout frontend repo (contains Ansible playbooks)
+        run: |
+          git clone https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/DancingAlien96/glowbook-frontend.git \
+            ${{ github.workspace }}/../glowbook-frontend
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Ansible and sshpass
+        run: |
+          pip install ansible
+          sudo apt-get install -y sshpass
+
+      - name: Install Ansible collections
+        working-directory: ../glowbook-frontend/deploy
+        run: ansible-galaxy collection install -r requirements.yml
+
+      - name: Configure SSH known hosts
+        run: |
+          mkdir -p ~/.ssh
+          ssh-keyscan -H ${{ secrets.DEPLOY_HOST }} >> ~/.ssh/known_hosts
+
+      - name: Generate vault.yml from GitHub secrets
+        run: |
+          cat > ../glowbook-frontend/deploy/group_vars/vault.yml << 'EOF'
+          ---
+          vault_mysql_root_password: "${{ secrets.MYSQL_ROOT_PASSWORD }}"
+          vault_mysql_password:      "${{ secrets.MYSQL_PASSWORD }}"
+          vault_jwt_access_secret:   "${{ secrets.JWT_ACCESS_SECRET }}"
+          vault_jwt_refresh_secret:  "${{ secrets.JWT_REFRESH_SECRET }}"
+          vault_resend_api_key:      "${{ secrets.RESEND_API_KEY }}"
+          vault_uploadthing_token:   "${{ secrets.UPLOADTHING_TOKEN }}"
+          vault_vapid_private_key:   "${{ secrets.VAPID_PRIVATE_KEY }}"
+          vault_recurrente_secret_key:     "${{ secrets.RECURRENTE_SECRET_KEY }}"
+          vault_recurrente_webhook_secret: "${{ secrets.RECURRENTE_WEBHOOK_SECRET }}"
+          EOF
+
+      - name: Run Ansible deploy (backend + frontend)
+        working-directory: ../glowbook-frontend/deploy
+        env:
+          ANSIBLE_HOST_KEY_CHECKING: "False"
+        run: |
+          ansible-playbook site.yml \
+            --tags deploy \
+            --extra-vars "ansible_user=${{ secrets.DEPLOY_USER }}" \
+            --extra-vars "ansible_password=${{ secrets.DEPLOY_PASSWORD }}" \
+            --extra-vars "ansible_ssh_pass=${{ secrets.DEPLOY_PASSWORD }}" \
+            --skip-tags vault
+
+      - name: Clean up secrets
+        if: always()
+        run: rm -f ../glowbook-frontend/deploy/group_vars/vault.yml
