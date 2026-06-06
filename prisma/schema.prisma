@@ -336,6 +336,9 @@ model Subscription {
   currentPeriodEnd DateTime?    // null for LIFETIME or TRIAL (use trialEndsAt)
   trialEndsAt      DateTime?
   cancelledAt      DateTime?
+  trial7DayEmailAt  DateTime?   // set when 7-day warning email is sent
+  trial2DayEmailAt  DateTime?   // set when 2-day warning email is sent
+  trialExpiredEmailAt DateTime? // set when expiration email is sent
   createdAt        DateTime     @default(now())
   updatedAt        DateTime     @updatedAt
 
