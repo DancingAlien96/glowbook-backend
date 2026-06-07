@@ -7,6 +7,7 @@ import { NotFound } from "../../lib/errors.js";
 import * as appointments from "../appointments/appointments.service.js";
 import { sendEmail } from "../../lib/email.js";
 import { bookingReceivedTemplate } from "../../lib/emails/bookingReceived.js";
+import { bookingNotifyOwnerTemplate } from "../../lib/emails/bookingNotifyOwner.js";
 import { sendPushToSalonOwners, sendPushToStylist } from "../../lib/webPush.js";
 
 export const publicRoutes = Router();
@@ -174,6 +175,31 @@ publicRoutes.post(
         requiresReceipt: salon.depositMode !== "NONE",
       });
       sendEmail({ to: data.client.email, subject: tpl.subject, html: tpl.html, text: tpl.text });
+    }
+
+    // Email to the salon owner(s) with booking details
+    const owners = await prisma.user.findMany({
+      where: { salonId: salon.id, role: "OWNER" },
+      select: { name: true, email: true },
+    });
+    if (owners.length > 0) {
+      const ownerEmails = owners.map((o) => o.email);
+      const ownerName = owners[0]!.name;
+      const tpl = bookingNotifyOwnerTemplate({
+        ownerName,
+        clientName: data.client.name,
+        clientEmail: data.client.email,
+        clientPhone: data.client.phone,
+        salonName: salon.name,
+        serviceName: appointment.service.name,
+        stylistName: appointment.stylist?.name ?? null,
+        startAt: appointment.startAt,
+        durationMin: appointment.durationMin,
+        depositCents: appointment.depositCents,
+        currency: salon.currency,
+        requiresReceipt: salon.depositMode !== "NONE",
+      });
+      sendEmail({ to: ownerEmails, subject: tpl.subject, html: tpl.html, text: tpl.text });
     }
 
     // Push to the salon's owner(s) — and to the chosen stylist if any.
