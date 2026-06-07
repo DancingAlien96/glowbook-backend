@@ -4,6 +4,8 @@ import { asyncHandler } from "../../lib/asyncHandler.js";
 import { validate } from "../../middleware/validate.js";
 import { requireAuth, requireRole, requireSalon } from "../../middleware/auth.js";
 import * as svc from "./appointments.service.js";
+import { sendEmail } from "../../lib/email.js";
+import { appointmentConfirmedTemplate } from "../../lib/emails/appointmentConfirmed.js";
 import { sendPushToStylist } from "../../lib/webPush.js";
 
 export const appointmentsRoutes = Router();
@@ -76,6 +78,20 @@ appointmentsRoutes.post(
       ...data,
       status: "CONFIRMED",
     });
+
+    // Send confirmation email to client
+    if (appointment.client.email) {
+      const tpl = appointmentConfirmedTemplate({
+        clientName: appointment.client.name,
+        salonName: appointment.salon.name,
+        salonSlug: appointment.salon.slug,
+        serviceName: appointment.service.name,
+        stylistName: appointment.stylist?.name ?? null,
+        startAt: appointment.startAt,
+        durationMin: appointment.durationMin,
+      });
+      sendEmail({ to: appointment.client.email, subject: tpl.subject, html: tpl.html, text: tpl.text });
+    }
 
     // If the owner picked a stylist, let her know on her device.
     if (appointment.stylist?.id) {

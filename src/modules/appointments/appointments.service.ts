@@ -154,7 +154,7 @@ export async function createAppointment(input: CreateAppointmentInput) {
       status: input.status ?? "PENDING",
       notes: input.notes ?? null,
     },
-    include: { service: true, stylist: true, client: true },
+    include: { service: true, stylist: true, client: true, salon: { select: { name: true, slug: true } } },
   });
 
   return appointment;
