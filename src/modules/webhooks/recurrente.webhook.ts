@@ -104,6 +104,42 @@ async function handleEvent(event: RecurrenteEvent) {
     case "payment.completed":
     case "payment.complete":
     case "payment_intent.succeeded": {
+      // ── Reliable path: checkout-id mapping ────────────────────────────────
+      // When the checkout was created server-side (POST /subscription/checkout)
+      // we stored checkoutId → salon. This activates the EXACT account no matter
+      // what email the customer typed at Recurrente's page.
+      const checkoutId = extractCheckoutId(event);
+      if (checkoutId) {
+        const session = await prisma.checkoutSession.findUnique({ where: { checkoutId } });
+        if (session) {
+          const sub = await prisma.subscription.findUnique({ where: { salonId: session.salonId } });
+          if (sub) {
+            const periodMonths = session.plan === "LIFETIME" ? 999 : session.plan === "YEARLY" ? 12 : 1;
+            const amountCents = extractAmountCents(event) ?? session.amountCents;
+            await prisma.subscriptionPayment.create({
+              data: {
+                subscriptionId: sub.id,
+                amountCents,
+                periodMonths,
+                status: "APPROVED",
+                reference: extractReference(event),
+                reviewedAt: new Date(),
+                reviewedBy: "recurrente-webhook",
+              },
+            });
+            await applyApprovedPayment({ subscriptionId: sub.id, periodMonths, plan: session.plan });
+            await prisma.checkoutSession.update({
+              where: { id: session.id },
+              data: { status: "COMPLETED" },
+            });
+            console.log(`[recurrente-webhook] Activated via checkout mapping: salon ${session.salonId} (${session.plan})`);
+            return;
+          }
+        }
+        console.warn(`[recurrente-webhook] checkoutId ${checkoutId} had no matching session — falling back to email`);
+      }
+
+      // ── Fallback: match by customer email (legacy static-link flow) ───────
       const email = extractEmail(event);
       if (!email) {
         console.warn("[recurrente-webhook] No customer email in payload — skipping");
@@ -227,6 +263,18 @@ function extractReference(event: RecurrenteEvent): string | null {
     (d?.payment as Record<string, unknown>)?.id as string ||
     (d?.checkout as Record<string, unknown>)?.id as string ||
     d?.id as string ||
+    null
+  );
+}
+
+// The Recurrente checkout id ("ch_...") used to map a payment back to the salon
+// that started it (see CheckoutSession). Probes the documented checkout.id plus
+// a couple of common aliases.
+function extractCheckoutId(event: RecurrenteEvent): string | null {
+  const d = event.data as Record<string, unknown>;
+  return (
+    ((d?.checkout as Record<string, unknown>)?.id as string) ||
+    (d?.checkout_id as string) ||
     null
   );
 }

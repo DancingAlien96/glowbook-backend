@@ -393,6 +393,23 @@ enum SubPaymentStatus {
   REJECTED
 }
 
+// Maps a Recurrente checkout (created via API) back to the salon that started
+// it. The webhook uses checkoutId to activate the EXACT account regardless of
+// which email the customer typed at Recurrente's checkout page — removing the
+// email-matching gotcha of the old static-link flow.
+model CheckoutSession {
+  id          String   @id @default(cuid())
+  checkoutId  String   @unique @db.VarChar(128) // Recurrente "ch_..." id
+  salonId     String
+  plan        Plan
+  amountCents Int
+  status      String   @default("PENDING") @db.VarChar(20) // PENDING | COMPLETED
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([salonId])
+}
+
 // =========================
 // Web Push subscriptions
 // =========================

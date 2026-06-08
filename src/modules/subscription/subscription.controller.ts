@@ -4,8 +4,9 @@ import { asyncHandler } from "../../lib/asyncHandler.js";
 import { validate } from "../../middleware/validate.js";
 import { requireAuth, requireRole, requireSalon } from "../../middleware/auth.js";
 import { prisma } from "../../lib/prisma.js";
-import { NotFound } from "../../lib/errors.js";
+import { NotFound, BadRequest } from "../../lib/errors.js";
 import { refreshSubscriptionStatus } from "../../lib/billing.js";
+import { createRecurrenteCheckout } from "../../lib/recurrente.js";
 import { env } from "../../config/env.js";
 
 export const subscriptionRoutes = Router();
@@ -43,6 +44,58 @@ subscriptionRoutes.get(
       },
       payments,
     });
+  })
+);
+
+// Creates a Recurrente checkout for the requested plan and records a mapping
+// (checkoutId → salon) so the webhook can activate the right account no matter
+// what email the customer types. Falls back to the static product link if the
+// Recurrente API is unavailable.
+const checkoutSchema = z.object({
+  plan: z.enum(["MONTHLY", "YEARLY", "LIFETIME"]),
+});
+
+subscriptionRoutes.post(
+  "/checkout",
+  validate(checkoutSchema),
+  asyncHandler(async (req, res) => {
+    const { plan } = req.body as z.infer<typeof checkoutSchema>;
+    const salonId = req.salonId!;
+
+    const settings = await prisma.platformSettings.findUnique({ where: { id: "default" } });
+    const amountCents =
+      plan === "LIFETIME"
+        ? settings?.lifetimePriceCents ?? 100000
+        : plan === "YEARLY"
+        ? settings?.yearlyPriceCents ?? 20000
+        : settings?.monthlyPriceCents ?? 2000;
+
+    const successUrl = `${env.APP_URL}/dashboard/billing?success=true`;
+    const cancelUrl = `${env.APP_URL}/dashboard/billing?cancelled=true`;
+
+    // Preferred path: create the checkout via API and map it to this salon.
+    if (env.RECURRENTE_SECRET_KEY) {
+      try {
+        const checkout = await createRecurrenteCheckout({ plan, amountCents, successUrl, cancelUrl });
+        await prisma.checkoutSession.create({
+          data: { checkoutId: checkout.id, salonId, plan, amountCents },
+        });
+        res.json({ url: checkout.url });
+        return;
+      } catch (err) {
+        console.error("[subscription/checkout] Recurrente API failed, using static link:", err);
+      }
+    }
+
+    // Fallback: static product link (relies on email match — see warning UI).
+    const fallback =
+      plan === "LIFETIME"
+        ? env.RECURRENTE_LIFETIME_URL
+        : plan === "YEARLY"
+        ? env.RECURRENTE_YEARLY_URL
+        : env.RECURRENTE_SUBSCRIPTION_URL;
+    if (!fallback) throw BadRequest("No hay un enlace de pago configurado para este plan.");
+    res.json({ url: fallback });
   })
 );
 

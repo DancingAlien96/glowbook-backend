@@ -30,10 +30,11 @@ const schema = z.object({
 
   // Recurrente payment gateway. Optional — if missing, card payment is disabled.
   RECURRENTE_SECRET_KEY: z.string().optional(),
+  RECURRENTE_PUBLIC_KEY: z.string().optional(), // sent as X-PUBLIC-KEY if present
   RECURRENTE_WEBHOOK_SECRET: z.string().optional(), // whsec_... from Svix
-  RECURRENTE_SUBSCRIPTION_URL: z.string().url().optional(), // https://app.recurrente.com/s/... (monthly)
-  RECURRENTE_YEARLY_URL: z.string().url().optional(), // https://app.recurrente.com/s/... (annual)
-  RECURRENTE_LIFETIME_URL: z.string().url().optional(), // https://app.recurrente.com/s/... (lifetime)
+  RECURRENTE_SUBSCRIPTION_URL: z.string().url().optional(), // static fallback link (monthly)
+  RECURRENTE_YEARLY_URL: z.string().url().optional(), // static fallback link (annual)
+  RECURRENTE_LIFETIME_URL: z.string().url().optional(), // static fallback link (lifetime)
 });
 
 const parsed = schema.safeParse(process.env);
