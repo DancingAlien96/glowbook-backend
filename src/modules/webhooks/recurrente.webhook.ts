@@ -90,7 +90,7 @@ async function handleEvent(event: RecurrenteEvent) {
       if (!user) {
         await prisma.pendingActivation.upsert({
           where: { email: email.toLowerCase() },
-          create: { email: email.toLowerCase(), plan: plan as any, amountCents: 0, isTrial: true },
+          create: { email: email.toLowerCase(), plan, amountCents: 0, isTrial: true },
           update: { isTrial: true, amountCents: 0, reference: null },
         });
         console.log(`[recurrente-webhook] Trial started for unregistered email: ${email} (plan: ${plan})`);
@@ -123,13 +123,13 @@ async function handleEvent(event: RecurrenteEvent) {
           where: { email: email.toLowerCase() },
           create: {
             email: email.toLowerCase(),
-            plan: plan as any,
+            plan,
             amountCents,
             isTrial: false,
             reference: extractReference(event),
           },
           update: {
-            plan: plan as any,
+            plan,
             amountCents,
             isTrial: false,
             reference: extractReference(event),
@@ -157,7 +157,7 @@ async function handleEvent(event: RecurrenteEvent) {
       await applyApprovedPayment({
         subscriptionId: sub.id,
         periodMonths,
-        plan: plan as any,
+        plan,
       });
 
       console.log(`[recurrente-webhook] Subscription activated for salon: ${user.salon.name} (${email}, plan: ${plan})`);

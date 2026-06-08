@@ -44,11 +44,11 @@ export function isActive(status: SubStatus): boolean {
   return status === "TRIAL" || status === "ACTIVE" || status === "OVERDUE" || status === "LIFETIME";
 }
 
-/** Apply an approved payment: extends currentPeriodEnd and updates status. */
+/** Apply an approved payment: extends currentPeriodEnd and updates status + plan. */
 export async function applyApprovedPayment(params: {
   subscriptionId: string;
   periodMonths: number;
-  plan: "MONTHLY" | "LIFETIME";
+  plan: "MONTHLY" | "YEARLY" | "LIFETIME";
 }): Promise<Subscription> {
   const { subscriptionId, periodMonths, plan } = params;
   const sub = await prisma.subscription.findUnique({ where: { id: subscriptionId } });
@@ -61,14 +61,19 @@ export async function applyApprovedPayment(params: {
     });
   }
 
-  // Start from now if expired/trial, otherwise extend from currentPeriodEnd.
+  // Start from now if expired/trial, otherwise extend from currentPeriodEnd so
+  // upgrading mid-trial doesn't lose the days already paid for.
   const now = new Date();
   const base =
     sub.currentPeriodEnd && sub.currentPeriodEnd > now ? sub.currentPeriodEnd : now;
-  const newEnd = new Date(base.getTime() + periodMonths * 30 * 86_400_000);
+  // Add whole calendar months so YEARLY = exactly 12 months (no 30-day drift).
+  const newEnd = new Date(base);
+  newEnd.setMonth(newEnd.getMonth() + periodMonths);
 
+  // IMPORTANT: also persist `plan` so the UI reflects what was actually bought
+  // (a YEARLY purchase used to stay labelled MONTHLY).
   return prisma.subscription.update({
     where: { id: subscriptionId },
-    data: { status: "ACTIVE", currentPeriodEnd: newEnd },
+    data: { status: "ACTIVE", plan, currentPeriodEnd: newEnd },
   });
 }
