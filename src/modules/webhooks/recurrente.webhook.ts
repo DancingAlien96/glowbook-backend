@@ -18,10 +18,8 @@ recurrenteWebhookRouter.post(
       return;
     }
 
-    // req.body is a Buffer here (mounted with express.raw())
     const rawBody = req.body as Buffer;
 
-    // Verify Svix signature
     const wh = new Webhook(env.RECURRENTE_WEBHOOK_SECRET);
     let event: RecurrenteEvent;
     try {
@@ -42,7 +40,6 @@ recurrenteWebhookRouter.post(
       await handleEvent(event);
     } catch (err) {
       console.error("[recurrente-webhook] Handler error:", err);
-      // Return 200 anyway so Svix doesn't retry indefinitely for logic errors
       res.status(200).json({ received: true, warning: "Handler error — check logs" });
       return;
     }
@@ -51,9 +48,31 @@ recurrenteWebhookRouter.post(
   }
 );
 
+// ─── Plan detection ────────────────────────────────────────────────────────
+
+function detectPlanFromEvent(event: RecurrenteEvent): "MONTHLY" | "YEARLY" | "LIFETIME" {
+  const d = event.data as Record<string, unknown>;
+  const product = d?.product as Record<string, unknown>;
+  const name = (product?.name as string || d?.name as string || "").toLowerCase();
+
+  if (name.includes("lifetime") || name.includes("vida")) return "LIFETIME";
+  if (name.includes("annual") || name.includes("yearly") || name.includes("anual")) return "YEARLY";
+  return "MONTHLY";
+}
+
+function getPriceForPlan(plan: "MONTHLY" | "YEARLY" | "LIFETIME"): number {
+  switch (plan) {
+    case "LIFETIME":
+      return 100000;
+    case "YEARLY":
+      return 20000;
+    case "MONTHLY":
+      return 2000;
+  }
+}
+
 async function handleEvent(event: RecurrenteEvent) {
   switch (event.type) {
-    // ── Trial started: card saved, no charge yet ──────────────────────────────
     case "subscription.created":
     case "subscription.create": {
       const email = extractEmail(event);
@@ -66,23 +85,22 @@ async function handleEvent(event: RecurrenteEvent) {
         where: { email: email.toLowerCase(), role: "OWNER" },
       });
 
+      const plan = detectPlanFromEvent(event);
+
       if (!user) {
-        // No account yet — store trial pending so registration activates correctly
         await prisma.pendingActivation.upsert({
           where: { email: email.toLowerCase() },
-          create: { email: email.toLowerCase(), plan: "MONTHLY", amountCents: 0, isTrial: true },
+          create: { email: email.toLowerCase(), plan: plan as any, amountCents: 0, isTrial: true },
           update: { isTrial: true, amountCents: 0, reference: null },
         });
-        console.log(`[recurrente-webhook] Trial started for unregistered email: ${email}`);
+        console.log(`[recurrente-webhook] Trial started for unregistered email: ${email} (plan: ${plan})`);
         sendEmail({ to: email, ...trialStartedTemplate({ email }) });
       } else {
-        // Account exists — payment_intent.succeeded in 14 days will activate it
-        console.log(`[recurrente-webhook] Trial started for existing user: ${email}`);
+        console.log(`[recurrente-webhook] Trial started for existing user: ${email} (plan: ${plan})`);
       }
       break;
     }
 
-    // ── Payment received: activate / extend subscription ──────────────────────
     case "payment.completed":
     case "payment.complete":
     case "payment_intent.succeeded": {
@@ -97,36 +115,38 @@ async function handleEvent(event: RecurrenteEvent) {
         include: { salon: { include: { subscription: true } } },
       });
 
-      const amountCents = extractAmountCents(event) ?? 2000;
+      const plan = detectPlanFromEvent(event);
+      const amountCents = extractAmountCents(event) ?? getPriceForPlan(plan);
 
       if (!user?.salon?.subscription) {
-        // Payment received but no account yet — store for activation on signup
         await prisma.pendingActivation.upsert({
           where: { email: email.toLowerCase() },
           create: {
             email: email.toLowerCase(),
-            plan: "MONTHLY",
+            plan: plan as any,
             amountCents,
             isTrial: false,
             reference: extractReference(event),
           },
           update: {
+            plan: plan as any,
             amountCents,
             isTrial: false,
             reference: extractReference(event),
           },
         });
-        console.log(`[recurrente-webhook] Payment received, no account for ${email} — stored PendingActivation`);
+        console.log(`[recurrente-webhook] Payment received, no account for ${email} — stored PendingActivation (plan: ${plan})`);
         sendEmail({ to: email, ...paymentPendingTemplate({ email }) });
         return;
       }
 
       const sub = user.salon.subscription;
+      const periodMonths = plan === "LIFETIME" ? 999 : plan === "YEARLY" ? 12 : 1;
       await prisma.subscriptionPayment.create({
         data: {
           subscriptionId: sub.id,
           amountCents,
-          periodMonths: 1,
+          periodMonths,
           status: "APPROVED",
           reference: extractReference(event),
           reviewedAt: new Date(),
@@ -136,11 +156,11 @@ async function handleEvent(event: RecurrenteEvent) {
 
       await applyApprovedPayment({
         subscriptionId: sub.id,
-        periodMonths: 1,
-        plan: "MONTHLY",
+        periodMonths,
+        plan: plan as any,
       });
 
-      console.log(`[recurrente-webhook] Subscription activated for salon: ${user.salon.name} (${email})`);
+      console.log(`[recurrente-webhook] Subscription activated for salon: ${user.salon.name} (${email}, plan: ${plan})`);
       break;
     }
 
@@ -170,7 +190,6 @@ async function handleEvent(event: RecurrenteEvent) {
     case "payment_intent.failed": {
       const email = extractEmail(event);
       console.warn(`[recurrente-webhook] Payment failed for: ${email ?? "unknown"}`);
-      // No action needed — subscription stays in current state, will expire naturally
       break;
     }
 
@@ -180,8 +199,6 @@ async function handleEvent(event: RecurrenteEvent) {
 }
 
 // ─── Payload helpers ────────────────────────────────────────────────────────
-// Recurrente's exact payload shape isn't publicly documented so we probe
-// common locations where customer email might appear.
 
 function extractEmail(event: RecurrenteEvent): string | null {
   const d = event.data as Record<string, unknown>;

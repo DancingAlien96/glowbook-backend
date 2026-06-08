@@ -318,7 +318,8 @@ model PlatformSettings {
   id                  String   @id @default("default")
   bankDetails         String?  @db.Text                  // Admin's bank info shown to salon owners
   monthlyPriceCents   Int      @default(2000)            // $20
-  lifetimePriceCents  Int      @default(66000)           // $660
+  yearlyPriceCents    Int      @default(20000)           // $200
+  lifetimePriceCents  Int      @default(100000)          // $1,000
   trialDays           Int      @default(14)
   graceDays           Int      @default(7)               // OVERDUE → SUSPENDED after this many days
   contactEmail        String?  @db.VarChar(160)
@@ -351,6 +352,7 @@ model Subscription {
 
 enum Plan {
   MONTHLY
+  YEARLY
   LIFETIME
 }
 

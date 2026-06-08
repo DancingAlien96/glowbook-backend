@@ -33,10 +33,13 @@ subscriptionRoutes.get(
       platform: {
         bankDetails: settings?.bankDetails ?? null,
         monthlyPriceCents: settings?.monthlyPriceCents ?? 2000,
-        lifetimePriceCents: settings?.lifetimePriceCents ?? 66000,
+        yearlyPriceCents: settings?.yearlyPriceCents ?? 20000,
+        lifetimePriceCents: settings?.lifetimePriceCents ?? 100000,
         contactEmail: settings?.contactEmail ?? null,
         contactWhatsapp: settings?.contactWhatsapp ?? null,
         recurrenteUrl: env.RECURRENTE_SUBSCRIPTION_URL ?? null,
+        recurrenteYearlyUrl: env.RECURRENTE_YEARLY_URL ?? null,
+        recurrenteLifetimeUrl: env.RECURRENTE_LIFETIME_URL ?? null,
       },
       payments,
     });
@@ -47,7 +50,7 @@ const receiptSchema = z.object({
   url: z.string().url().max(500),
   name: z.string().max(255).optional(),
   reference: z.string().max(128).optional(),
-  plan: z.enum(["MONTHLY", "LIFETIME"]).default("MONTHLY"),
+  plan: z.enum(["MONTHLY", "YEARLY", "LIFETIME"]).default("MONTHLY"),
   periodMonths: z.coerce.number().int().min(1).max(36).default(1),
 });
 
@@ -63,7 +66,9 @@ subscriptionRoutes.post(
     const settings = await prisma.platformSettings.findUnique({ where: { id: "default" } });
     const amountCents =
       body.plan === "LIFETIME"
-        ? settings?.lifetimePriceCents ?? 66000
+        ? settings?.lifetimePriceCents ?? 100000
+        : body.plan === "YEARLY"
+        ? settings?.yearlyPriceCents ?? 20000
         : (settings?.monthlyPriceCents ?? 2000) * body.periodMonths;
 
     const payment = await prisma.subscriptionPayment.create({
