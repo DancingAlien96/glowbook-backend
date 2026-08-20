@@ -5,6 +5,7 @@ import { validate } from "../../middleware/validate.js";
 import { requireAuth, requireRole, requireSalon } from "../../middleware/auth.js";
 import { blockWritesIfSuspended } from "../../middleware/subscription.js";
 import { prisma } from "../../lib/prisma.js";
+import { hoursArraySchema } from "../../lib/hoursValidation.js";
 
 export const salonRoutes = Router();
 salonRoutes.use(requireAuth, requireRole("OWNER"), requireSalon);
@@ -49,17 +50,7 @@ salonRoutes.patch(
   })
 );
 
-const hoursSchema = z.object({
-  hours: z
-    .array(
-      z.object({
-        dayOfWeek: z.number().int().min(0).max(6),
-        openMin: z.number().int().min(0).max(1440),
-        closeMin: z.number().int().min(0).max(1440),
-      })
-    )
-    .max(7),
-});
+const hoursSchema = z.object({ hours: hoursArraySchema });
 
 salonRoutes.put(
   "/me/hours",

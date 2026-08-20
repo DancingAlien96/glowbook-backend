@@ -6,6 +6,7 @@ import { requireAuth, requireRole, requireSalon } from "../../middleware/auth.js
 import { blockWritesIfSuspended } from "../../middleware/subscription.js";
 import { prisma } from "../../lib/prisma.js";
 import { NotFound } from "../../lib/errors.js";
+import { hoursArraySchema } from "../../lib/hoursValidation.js";
 
 export const stylistsRoutes = Router();
 stylistsRoutes.use(requireAuth, requireRole("OWNER"), requireSalon);
@@ -38,17 +39,7 @@ stylistsRoutes.get(
 
 // Owner sets a stylist's weekly schedule (replaces all rows).
 // An empty list means "inherit the salon hours".
-const hoursSchema = z.object({
-  hours: z
-    .array(
-      z.object({
-        dayOfWeek: z.number().int().min(0).max(6),
-        openMin: z.number().int().min(0).max(1440),
-        closeMin: z.number().int().min(0).max(1440),
-      })
-    )
-    .max(7),
-});
+const hoursSchema = z.object({ hours: hoursArraySchema });
 
 stylistsRoutes.put(
   "/:id/hours",
