@@ -63,21 +63,23 @@ jobs:
           vault_backup_encryption_key:     "${{ secrets.BACKUP_ENCRYPTION_KEY }}"
           EOF
 
-      - name: Check ADMIN user(s) in production (temp, read-only)
+      - name: Check ADMIN user(s) in production (temp, read-only, no PII)
         working-directory: ../glowbook-frontend/deploy
         env:
-          ANSIBLE_HOST_KEY_CHECKING: "False"
+          MYSQL_PWD_FOR_CHECK: ${{ secrets.MYSQL_PASSWORD }}
         run: |
           ansible production -i inventory.ini -m shell \
-            -a "docker exec glowbook-mysql mysql -uglowbook -p'${{ secrets.MYSQL_PASSWORD }}' glowbook -e \"SELECT id, email, name, role, salonId, createdAt FROM User WHERE role='ADMIN'\\G\"" \
+            -a "docker exec -e MYSQL_PWD='$MYSQL_PWD_FOR_CHECK' glowbook-mysql mysql -uglowbook glowbook -e \"SELECT id, role, salonId, createdAt FROM User WHERE role='ADMIN'\\G\"" \
             --extra-vars "ansible_user=${{ secrets.DEPLOY_USER }}" \
             --extra-vars "ansible_password=${{ secrets.DEPLOY_PASSWORD }}" \
             --extra-vars "ansible_ssh_pass=${{ secrets.DEPLOY_PASSWORD }}"
 
       - name: Run Ansible deploy (backend + frontend)
+        # Host key checking is intentionally left ON — "Configure SSH known
+        # hosts" above already populated ~/.ssh/known_hosts with the real
+        # key via ssh-keyscan, so this validates against it instead of
+        # blindly trusting whatever key answers (MITM protection).
         working-directory: ../glowbook-frontend/deploy
-        env:
-          ANSIBLE_HOST_KEY_CHECKING: "False"
         run: |
           ansible-playbook site.yml \
             --tags deploy \
