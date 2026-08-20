@@ -165,7 +165,12 @@ salonRoutes.get(
           status: "COMPLETED",
           startAt: { gte: startOfMonth, lt: startOfNextMonth },
         },
-        select: { stylistId: true, serviceId: true, priceCents: true, clientId: true },
+        select: {
+          stylistId: true,
+          priceCents: true,
+          clientId: true,
+          services: { select: { serviceId: true, priceCents: true } },
+        },
       }),
       prisma.appointment.groupBy({
         by: ["status"],
@@ -224,13 +229,17 @@ salonRoutes.get(
       .map(([name, cents]) => ({ name, cents }))
       .sort((a, b) => b.cents - a.cents);
 
-    // 3. topServices — count + revenue per service, top 5 by count.
+    // 3. topServices — count + revenue per service, top 5 by count. Each
+    //    completed appointment can carry more than one service now, so we
+    //    tally per line in AppointmentService rather than per appointment.
     const serviceMap = new Map(services.map((s) => [s.id, s.name] as const));
     const serviceStats = new Map<string, { count: number; cents: number }>();
     for (const a of completedThisMonth) {
-      const name = serviceMap.get(a.serviceId) ?? "—";
-      const prev = serviceStats.get(name) ?? { count: 0, cents: 0 };
-      serviceStats.set(name, { count: prev.count + 1, cents: prev.cents + a.priceCents });
+      for (const line of a.services) {
+        const name = serviceMap.get(line.serviceId) ?? "—";
+        const prev = serviceStats.get(name) ?? { count: 0, cents: 0 };
+        serviceStats.set(name, { count: prev.count + 1, cents: prev.cents + line.priceCents });
+      }
     }
     const topServices = Array.from(serviceStats.entries())
       .map(([name, s]) => ({ name, count: s.count, cents: s.cents }))

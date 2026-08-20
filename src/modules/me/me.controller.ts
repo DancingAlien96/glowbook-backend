@@ -89,7 +89,9 @@ meRoutes.get(
         durationMin: true,
         status: true,
         notes: true,
-        service: { select: { id: true, name: true, durationMin: true, category: true } },
+        services: {
+          include: { service: { select: { id: true, name: true, durationMin: true, category: true } } },
+        },
         client: { select: { id: true, name: true, phone: true } },
       },
     });
@@ -122,7 +124,7 @@ meRoutes.patch(
         startAt: true,
         endAt: true,
         status: true,
-        service: { select: { name: true } },
+        services: { include: { service: { select: { name: true } } } },
         client: { select: { name: true } },
       },
     });

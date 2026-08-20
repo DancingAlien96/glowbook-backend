@@ -5,6 +5,7 @@ import { validate } from "../../middleware/validate.js";
 import { prisma } from "../../lib/prisma.js";
 import { NotFound } from "../../lib/errors.js";
 import * as appointments from "../appointments/appointments.service.js";
+import { serviceNames } from "../appointments/appointments.service.js";
 import { sendEmail } from "../../lib/email.js";
 import { bookingReceivedTemplate } from "../../lib/emails/bookingReceived.js";
 import { bookingNotifyOwnerTemplate } from "../../lib/emails/bookingNotifyOwner.js";
@@ -123,7 +124,7 @@ publicRoutes.get(
 );
 
 const createBookingSchema = z.object({
-  serviceId: z.string().cuid(),
+  serviceIds: z.array(z.string().cuid()).min(1, "Selecciona al menos un servicio"),
   stylistId: z.string().cuid().optional().nullable(),
   startAt: z.coerce.date(),
   notes: z.string().max(1000).optional().nullable(),
@@ -153,7 +154,7 @@ publicRoutes.post(
     const data = req.body as z.infer<typeof createBookingSchema>;
     const appointment = await appointments.createAppointment({
       salonId: salon.id,
-      serviceId: data.serviceId,
+      serviceIds: data.serviceIds,
       stylistId: data.stylistId ?? null,
       startAt: data.startAt,
       notes: data.notes ?? null,
@@ -166,7 +167,7 @@ publicRoutes.post(
         clientName: data.client.name,
         salonName: salon.name,
         salonSlug: salon.slug,
-        serviceName: appointment.service.name,
+        serviceName: serviceNames(appointment),
         stylistName: appointment.stylist?.name ?? null,
         startAt: appointment.startAt,
         durationMin: appointment.durationMin,
@@ -191,7 +192,7 @@ publicRoutes.post(
         clientEmail: data.client.email,
         clientPhone: data.client.phone,
         salonName: salon.name,
-        serviceName: appointment.service.name,
+        serviceName: serviceNames(appointment),
         stylistName: appointment.stylist?.name ?? null,
         startAt: appointment.startAt,
         durationMin: appointment.durationMin,
@@ -208,14 +209,14 @@ publicRoutes.post(
     });
     void sendPushToSalonOwners(salon.id, {
       title: "Nueva reserva ✨",
-      body: `${appointment.client.name} · ${appointment.service.name} · ${when}`,
+      body: `${appointment.client.name} · ${serviceNames(appointment)} · ${when}`,
       url: "/dashboard/appointments",
       tag: `booking-${appointment.id}`,
     });
     if (appointment.stylist?.id) {
       void sendPushToStylist(appointment.stylist.id, {
         title: "Nueva cita asignada",
-        body: `${appointment.client.name} · ${appointment.service.name} · ${when}`,
+        body: `${appointment.client.name} · ${serviceNames(appointment)} · ${when}`,
         url: "/me/appointments",
         tag: `booking-${appointment.id}`,
       });
@@ -230,7 +231,7 @@ publicRoutes.post(
         priceCents: appointment.priceCents,
         depositCents: appointment.depositCents,
         status: appointment.status,
-        service: appointment.service,
+        services: appointment.services.map((s) => s.service),
         stylist: appointment.stylist,
         client: { id: appointment.client.id, name: appointment.client.name },
       },

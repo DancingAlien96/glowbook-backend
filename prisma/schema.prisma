@@ -113,7 +113,7 @@ model Service {
 
   salon        Salon              @relation(fields: [salonId], references: [id], onDelete: Cascade)
   stylists     StylistService[]
-  appointments Appointment[]
+  appointments AppointmentService[]
 
   @@index([salonId, active])
 }
@@ -233,11 +233,13 @@ enum ClientTag {
 model Appointment {
   id           String   @id @default(cuid())
   salonId      String
-  serviceId    String
   stylistId    String?
   clientId     String
   startAt      DateTime
   endAt        DateTime
+  // Totals aggregated across every service on this appointment (see
+  // AppointmentService below). Kept as flat columns so commission/earnings
+  // math and reporting don't need to re-sum the join table each time.
   durationMin  Int
   priceCents   Int
   depositCents Int      @default(0)
@@ -249,10 +251,10 @@ model Appointment {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
-  salon   Salon    @relation(fields: [salonId], references: [id], onDelete: Cascade)
-  service Service  @relation(fields: [serviceId], references: [id])
-  stylist Stylist? @relation(fields: [stylistId], references: [id], onDelete: SetNull)
-  client  Client   @relation(fields: [clientId], references: [id])
+  salon    Salon               @relation(fields: [salonId], references: [id], onDelete: Cascade)
+  services AppointmentService[]
+  stylist  Stylist?            @relation(fields: [stylistId], references: [id], onDelete: SetNull)
+  client   Client              @relation(fields: [clientId], references: [id])
   payments Payment[]
 
   @@index([salonId, startAt])
@@ -260,6 +262,22 @@ model Appointment {
   @@index([clientId])
   @@index([status])
   @@index([status, reminderSentAt, startAt])
+}
+
+// One row per service chosen on an appointment. priceCents/durationMin are
+// snapshotted at booking time so a later edit to Service pricing doesn't
+// retroactively change past appointments.
+model AppointmentService {
+  appointmentId String
+  serviceId     String
+  priceCents    Int
+  durationMin   Int
+
+  appointment Appointment @relation(fields: [appointmentId], references: [id], onDelete: Cascade)
+  service     Service     @relation(fields: [serviceId], references: [id])
+
+  @@id([appointmentId, serviceId])
+  @@index([serviceId])
 }
 
 enum AppointmentStatus {

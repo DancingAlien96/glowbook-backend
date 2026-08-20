@@ -72,7 +72,7 @@ clientsRoutes.get(
         appointments: {
           orderBy: { startAt: "desc" },
           take: 20,
-          include: { service: true, stylist: true },
+          include: { services: { include: { service: true } }, stylist: true },
         },
       },
     });

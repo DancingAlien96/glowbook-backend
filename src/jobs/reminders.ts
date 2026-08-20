@@ -5,6 +5,7 @@
 import cron from "node-cron";
 import { prisma } from "../lib/prisma.js";
 import { sendPushToSalonOwners, sendPushToStylist, isPushConfigured } from "../lib/webPush.js";
+import { serviceNames } from "../modules/appointments/appointments.service.js";
 
 const WINDOW_BEFORE_MS = 25 * 60_000;
 const WINDOW_AFTER_MS = 35 * 60_000;
@@ -40,7 +41,7 @@ async function runOnce(): Promise<void> {
       stylistId: true,
       startAt: true,
       client: { select: { name: true } },
-      service: { select: { name: true } },
+      services: { include: { service: { select: { name: true } } } },
     },
   });
 
@@ -57,7 +58,7 @@ async function runOnce(): Promise<void> {
     const when = new Date(a.startAt).toLocaleTimeString("es-EC", {
       hour: "2-digit", minute: "2-digit",
     });
-    const body = `${a.client.name} · ${a.service.name} · ${when}`;
+    const body = `${a.client.name} · ${serviceNames(a)} · ${when}`;
 
     void sendPushToSalonOwners(a.salonId, {
       title: "Cita en 30 minutos ⏰",

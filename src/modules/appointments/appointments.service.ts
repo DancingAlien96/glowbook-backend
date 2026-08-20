@@ -52,9 +52,21 @@ export async function checkConflicts(params: {
   }
 }
 
+const appointmentInclude = {
+  services: { include: { service: true }, orderBy: { serviceId: "asc" } },
+  stylist: true,
+  client: true,
+} as const;
+
+// Dedup while preserving the caller's order (first pick order matters for
+// nothing today, but it keeps behaviour predictable).
+function dedupeIds(ids: string[]): string[] {
+  return Array.from(new Set(ids));
+}
+
 export type CreateAppointmentInput = {
   salonId: string;
-  serviceId: string;
+  serviceIds: string[];
   stylistId?: string | null;
   client: { id?: string; name: string; email?: string | null; phone?: string | null };
   startAt: Date;
@@ -64,12 +76,17 @@ export type CreateAppointmentInput = {
 };
 
 export async function createAppointment(input: CreateAppointmentInput) {
-  const service = await prisma.service.findFirst({
-    where: { id: input.serviceId, salonId: input.salonId, active: true },
-  });
-  if (!service) throw NotFound("Service not found");
+  const serviceIds = dedupeIds(input.serviceIds);
+  if (serviceIds.length === 0) throw BadRequest("Select at least one service");
 
-  const endAt = new Date(input.startAt.getTime() + service.durationMin * 60_000);
+  const services = await prisma.service.findMany({
+    where: { id: { in: serviceIds }, salonId: input.salonId, active: true },
+  });
+  if (services.length !== serviceIds.length) throw NotFound("Service not found");
+
+  const durationMin = services.reduce((sum, s) => sum + s.durationMin, 0);
+  const priceCents = services.reduce((sum, s) => sum + s.priceCents, 0);
+  const endAt = new Date(input.startAt.getTime() + durationMin * 60_000);
   await checkConflicts({
     salonId: input.salonId,
     stylistId: input.stylistId ?? null,
@@ -85,9 +102,9 @@ export async function createAppointment(input: CreateAppointmentInput) {
 
   const depositCents =
     salon.depositMode === "FULL"
-      ? service.priceCents
+      ? priceCents
       : salon.depositMode === "PERCENTAGE"
-      ? Math.round((service.priceCents * salon.depositPercent) / 100)
+      ? Math.round((priceCents * salon.depositPercent) / 100)
       : 0;
 
   // Find or create client. Two-pass dedup:
@@ -143,18 +160,24 @@ export async function createAppointment(input: CreateAppointmentInput) {
   const appointment = await prisma.appointment.create({
     data: {
       salonId: input.salonId,
-      serviceId: input.serviceId,
       stylistId: input.stylistId ?? null,
       clientId,
       startAt: input.startAt,
       endAt,
-      durationMin: service.durationMin,
-      priceCents: service.priceCents,
+      durationMin,
+      priceCents,
       depositCents,
       status: input.status ?? "PENDING",
       notes: input.notes ?? null,
+      services: {
+        create: services.map((s) => ({
+          serviceId: s.id,
+          priceCents: s.priceCents,
+          durationMin: s.durationMin,
+        })),
+      },
     },
-    include: { service: true, stylist: true, client: true, salon: { select: { name: true, slug: true } } },
+    include: { ...appointmentInclude, salon: { select: { name: true, slug: true } } },
   });
 
   return appointment;
@@ -167,7 +190,7 @@ export async function setStatus(salonId: string, id: string, status: Appointment
 }
 
 export type UpdateAppointmentInput = {
-  serviceId?: string;
+  serviceIds?: string[];
   stylistId?: string | null;
   startAt?: Date;
   notes?: string | null;
@@ -175,14 +198,14 @@ export type UpdateAppointmentInput = {
 
 /**
  * Owner-side edit of an existing appointment. Used when the dueña realised
- * she picked the wrong day, stylist, etc. Re-runs conflict checking against
- * the *new* slot but excludes the current appointment so the row never
- * collides with itself.
+ * she picked the wrong day, stylist, services, etc. Re-runs conflict checking
+ * against the *new* slot but excludes the current appointment so the row
+ * never collides with itself.
  *
- * If serviceId changes we also rotate durationMin + priceCents to the new
- * service's values. depositCents intentionally stays put — the deposit was
- * already collected (or not) based on the original service price and the
- * dueña shouldn't be able to retroactively change what the client paid.
+ * If serviceIds changes we also rotate durationMin + priceCents to the sum
+ * of the new services' values. depositCents intentionally stays put — the
+ * deposit was already collected (or not) based on the original price and
+ * the dueña shouldn't be able to retroactively change what the client paid.
  */
 export async function updateAppointment(
   salonId: string,
@@ -191,22 +214,31 @@ export async function updateAppointment(
 ) {
   const existing = await prisma.appointment.findFirst({
     where: { id, salonId },
-    include: { service: true },
+    include: appointmentInclude,
   });
   if (!existing) throw NotFound("Appointment not found");
 
-  // Resolve target service (existing or freshly fetched if it changed).
-  let service = existing.service;
-  if (input.serviceId && input.serviceId !== existing.serviceId) {
-    const next = await prisma.service.findFirst({
-      where: { id: input.serviceId, salonId, active: true },
+  const existingServiceIds = existing.services.map((s) => s.serviceId).sort();
+  const requestedServiceIds = input.serviceIds ? dedupeIds(input.serviceIds).sort() : null;
+  const servicesChanged =
+    requestedServiceIds !== null &&
+    (requestedServiceIds.length !== existingServiceIds.length ||
+      requestedServiceIds.some((id, i) => id !== existingServiceIds[i]));
+
+  // Resolve target services (existing or freshly fetched if they changed).
+  let services = existing.services.map((s) => s.service);
+  if (servicesChanged) {
+    if (requestedServiceIds!.length === 0) throw BadRequest("Select at least one service");
+    const next = await prisma.service.findMany({
+      where: { id: { in: requestedServiceIds! }, salonId, active: true },
     });
-    if (!next) throw NotFound("Service not found");
-    service = next;
+    if (next.length !== requestedServiceIds!.length) throw NotFound("Service not found");
+    services = next;
   }
 
   const startAt = input.startAt ?? existing.startAt;
-  const durationMin = service.durationMin;
+  const durationMin = services.reduce((sum, s) => sum + s.durationMin, 0);
+  const priceCents = services.reduce((sum, s) => sum + s.priceCents, 0);
   const endAt = new Date(startAt.getTime() + durationMin * 60_000);
   const stylistId =
     input.stylistId === undefined ? existing.stylistId : input.stylistId;
@@ -224,19 +256,30 @@ export async function updateAppointment(
   const updated = await prisma.appointment.update({
     where: { id },
     data: {
-      serviceId: service.id,
       stylistId,
       startAt,
       endAt,
       durationMin,
-      priceCents: service.priceCents,
+      priceCents,
       // Clearing the reminder flag so the 30-min push fires again at the
       // new startAt instead of being skipped because the old time already
       // got a reminder.
       reminderSentAt: null,
       ...(input.notes !== undefined ? { notes: input.notes } : {}),
+      ...(servicesChanged
+        ? {
+            services: {
+              deleteMany: {},
+              create: services.map((s) => ({
+                serviceId: s.id,
+                priceCents: s.priceCents,
+                durationMin: s.durationMin,
+              })),
+            },
+          }
+        : {}),
     },
-    include: { service: true, stylist: true, client: true },
+    include: appointmentInclude,
   });
 
   return updated;
@@ -262,10 +305,19 @@ export async function listAppointments(params: {
     where,
     orderBy: { startAt: "asc" },
     include: {
-      service: { select: { id: true, name: true, durationMin: true, priceCents: true } },
+      services: {
+        include: { service: { select: { id: true, name: true, durationMin: true, priceCents: true } } },
+        orderBy: { serviceId: "asc" },
+      },
       stylist: { select: { id: true, name: true } },
       client: { select: { id: true, name: true, email: true, phone: true } },
       payments: { select: { id: true, status: true, amountCents: true, method: true } },
     },
   });
+}
+
+// Helper for callers (controllers, emails) that just want "Corte, Color" out
+// of `appointment.services`.
+export function serviceNames(appointment: { services: { service: { name: string } }[] }): string {
+  return appointment.services.map((s) => s.service.name).join(", ");
 }

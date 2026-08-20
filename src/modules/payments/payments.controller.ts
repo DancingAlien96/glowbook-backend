@@ -9,6 +9,7 @@ import { sendEmail } from "../../lib/email.js";
 import { receiptArrivedTemplate } from "../../lib/emails/receiptArrived.js";
 import { bookingConfirmedTemplate } from "../../lib/emails/bookingConfirmed.js";
 import { sendPushToSalonOwners } from "../../lib/webPush.js";
+import { serviceNames } from "../appointments/appointments.service.js";
 
 export const paymentsRoutes = Router();
 paymentsRoutes.use(requireAuth, requireRole("OWNER"), requireSalon);
@@ -24,7 +25,7 @@ paymentsRoutes.get(
         appointment: {
           include: {
             client: { select: { id: true, name: true } },
-            service: { select: { id: true, name: true } },
+            services: { include: { service: { select: { id: true, name: true } } } },
           },
         },
       },
@@ -63,7 +64,7 @@ paymentsRoutes.post(
       select: {
         startAt: true, durationMin: true,
         salon: { select: { name: true, slug: true } },
-        service: { select: { name: true } },
+        services: { include: { service: { select: { name: true } } } },
         stylist: { select: { name: true } },
         client: { select: { name: true, email: true } },
       },
@@ -73,7 +74,7 @@ paymentsRoutes.post(
         clientName: appt.client.name,
         salonName: appt.salon.name,
         salonSlug: appt.salon.slug,
-        serviceName: appt.service.name,
+        serviceName: serviceNames(appt),
         stylistName: appt.stylist?.name ?? null,
         startAt: appt.startAt,
         durationMin: appt.durationMin,
@@ -133,7 +134,7 @@ publicPaymentsRoutes.post(
       select: {
         id: true, salonId: true, depositCents: true, startAt: true,
         salon: { select: { name: true, currency: true } },
-        service: { select: { name: true } },
+        services: { include: { service: { select: { name: true } } } },
         client: { select: { name: true } },
       },
     });
@@ -162,7 +163,7 @@ publicPaymentsRoutes.post(
         ownerName: owner.name,
         salonName: appointment.salon.name,
         clientName: appointment.client.name,
-        serviceName: appointment.service.name,
+        serviceName: serviceNames(appointment),
         startAt: appointment.startAt,
         amountCents: appointment.depositCents,
         currency: appointment.salon.currency,
@@ -173,7 +174,7 @@ publicPaymentsRoutes.post(
     // Push (fire-and-forget) — owner gets the receipt notification on their device.
     void sendPushToSalonOwners(appointment.salonId, {
       title: "Comprobante por revisar",
-      body: `${appointment.client.name} subió el comprobante de ${appointment.service.name}.`,
+      body: `${appointment.client.name} subió el comprobante de ${serviceNames(appointment)}.`,
       url: "/dashboard/payments",
       tag: `receipt-${payment.id}`,
       requireInteraction: true,

@@ -7,6 +7,7 @@ import * as svc from "./appointments.service.js";
 import { sendEmail } from "../../lib/email.js";
 import { appointmentConfirmedTemplate } from "../../lib/emails/appointmentConfirmed.js";
 import { sendPushToStylist } from "../../lib/webPush.js";
+import { serviceNames } from "./appointments.service.js";
 
 export const appointmentsRoutes = Router();
 appointmentsRoutes.use(requireAuth, requireRole("OWNER"), requireSalon);
@@ -19,7 +20,7 @@ const listQuerySchema = z.object({
 });
 
 const createSchema = z.object({
-  serviceId: z.string().cuid(),
+  serviceIds: z.array(z.string().cuid()).min(1, "Selecciona al menos un servicio"),
   stylistId: z.string().cuid().optional().nullable(),
   startAt: z.coerce.date(),
   notes: z.string().max(1000).optional().nullable(),
@@ -47,7 +48,7 @@ const statusSchema = z.object({
 // without sending the full record back.
 const updateSchema = z
   .object({
-    serviceId: z.string().cuid().optional(),
+    serviceIds: z.array(z.string().cuid()).min(1, "Selecciona al menos un servicio").optional(),
     stylistId: z.string().cuid().optional().nullable(),
     startAt: z.coerce.date().optional(),
     notes: z.string().max(1000).optional().nullable(),
@@ -85,7 +86,7 @@ appointmentsRoutes.post(
         clientName: appointment.client.name,
         salonName: appointment.salon.name,
         salonSlug: appointment.salon.slug,
-        serviceName: appointment.service.name,
+        serviceName: serviceNames(appointment),
         stylistName: appointment.stylist?.name ?? null,
         startAt: appointment.startAt,
         durationMin: appointment.durationMin,
@@ -100,7 +101,7 @@ appointmentsRoutes.post(
       });
       void sendPushToStylist(appointment.stylist.id, {
         title: "Nueva cita asignada",
-        body: `${appointment.client.name} · ${appointment.service.name} · ${when}`,
+        body: `${appointment.client.name} · ${serviceNames(appointment)} · ${when}`,
         url: "/me/appointments",
         tag: `booking-${appointment.id}`,
       });
@@ -136,13 +137,13 @@ appointmentsRoutes.patch(
 
     // If a stylist is now (or still) assigned and the time/service changed,
     // give her a heads-up push so her own calendar lines up.
-    if (appointment.stylist?.id && (body.startAt || body.serviceId || body.stylistId !== undefined)) {
+    if (appointment.stylist?.id && (body.startAt || body.serviceIds || body.stylistId !== undefined)) {
       const when = new Date(appointment.startAt).toLocaleString("es-EC", {
         day: "numeric", month: "short", hour: "2-digit", minute: "2-digit",
       });
       void sendPushToStylist(appointment.stylist.id, {
         title: "Cita reprogramada",
-        body: `${appointment.client.name} · ${appointment.service.name} · ${when}`,
+        body: `${appointment.client.name} · ${serviceNames(appointment)} · ${when}`,
         url: "/me/appointments",
         tag: `booking-${appointment.id}`,
       });
