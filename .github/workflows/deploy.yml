@@ -62,6 +62,17 @@ jobs:
           vault_recurrente_webhook_secret: "${{ secrets.RECURRENTE_WEBHOOK_SECRET }}"
           EOF
 
+      - name: Check whether Dokploy is already on this server (temp diagnostic)
+        working-directory: ../glowbook-frontend/deploy
+        env:
+          ANSIBLE_HOST_KEY_CHECKING: "False"
+        run: |
+          ansible production -i inventory.ini -m shell \
+            -a "echo '--- docker ps (all) ---'; docker ps -a; echo '--- dokploy dirs? ---'; ls -la /etc/dokploy 2>&1; ls -la /root/.dokploy 2>&1; echo '--- port 3000? ---'; (curl -s -o /dev/null -w 'port3000: %{http_code}\n' http://127.0.0.1:3000 || true); echo '--- disk free ---'; df -h /" \
+            --extra-vars "ansible_user=${{ secrets.DEPLOY_USER }}" \
+            --extra-vars "ansible_password=${{ secrets.DEPLOY_PASSWORD }}" \
+            --extra-vars "ansible_ssh_pass=${{ secrets.DEPLOY_PASSWORD }}"
+
       - name: Run Ansible deploy (backend + frontend)
         working-directory: ../glowbook-frontend/deploy
         env:
