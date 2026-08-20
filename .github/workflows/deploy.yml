@@ -54,6 +54,17 @@ jobs:
           vault_recurrente_webhook_secret: "${{ secrets.RECURRENTE_WEBHOOK_SECRET }}"
           EOF
 
+      - name: One-time cleanup of corrupted frontend node_modules (temp)
+        working-directory: ../glowbook-frontend/deploy
+        env:
+          ANSIBLE_HOST_KEY_CHECKING: "False"
+        run: |
+          ansible production -i inventory.ini -m shell \
+            -a "rm -rf /opt/ecodama/frontend/node_modules /opt/ecodama/frontend/.next" \
+            --extra-vars "ansible_user=${{ secrets.DEPLOY_USER }}" \
+            --extra-vars "ansible_password=${{ secrets.DEPLOY_PASSWORD }}" \
+            --extra-vars "ansible_ssh_pass=${{ secrets.DEPLOY_PASSWORD }}"
+
       - name: Run Ansible deploy (backend + frontend)
         working-directory: ../glowbook-frontend/deploy
         env:
