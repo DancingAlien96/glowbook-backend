@@ -54,13 +54,13 @@ jobs:
           vault_recurrente_webhook_secret: "${{ secrets.RECURRENTE_WEBHOOK_SECRET }}"
           EOF
 
-      - name: Check migration file content on server + inside image (temp diagnostic)
+      - name: Show real index state on production (temp diagnostic)
         working-directory: ../glowbook-frontend/deploy
         env:
           ANSIBLE_HOST_KEY_CHECKING: "False"
         run: |
           ansible production -i inventory.ini -m shell \
-            -a "echo '--- ON DISK ---' && head -20 /opt/ecodama/backend/prisma/migrations/20260820035927_multiple_hour_ranges_per_day/migration.sql && echo '--- INSIDE IMAGE ---' && docker run --rm --entrypoint sh glowbook-api:latest -c 'head -20 prisma/migrations/20260820035927_multiple_hour_ranges_per_day/migration.sql'" \
+            -a "docker exec glowbook-mysql mysql -uglowbook -p'${{ secrets.MYSQL_PASSWORD }}' glowbook -e \"SHOW INDEX FROM BusinessHour; SELECT migration_name, started_at, finished_at, rolled_back_at, applied_steps_count FROM _prisma_migrations WHERE migration_name = '20260820035927_multiple_hour_ranges_per_day' ORDER BY started_at;\"" \
             --extra-vars "ansible_user=${{ secrets.DEPLOY_USER }}" \
             --extra-vars "ansible_password=${{ secrets.DEPLOY_PASSWORD }}" \
             --extra-vars "ansible_ssh_pass=${{ secrets.DEPLOY_PASSWORD }}"
