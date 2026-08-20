@@ -63,27 +63,6 @@ jobs:
           vault_backup_encryption_key:     "${{ secrets.BACKUP_ENCRYPTION_KEY }}"
           EOF
 
-      - name: Create real ADMIN account (one-time, temp)
-        # No admin user existed in production. Creates one with a random
-        # bcrypt hash generated offline — the hash never appears in this
-        # log (masked before use), and the plaintext password is never
-        # transmitted anywhere near CI at all.
-        working-directory: ../glowbook-frontend/deploy
-        env:
-          ADMIN_EMAIL: "admin@ecodama.online"
-          ADMIN_NAME: "Ecodama Admin"
-          ADMIN_ID: "cbee94f2e547613e4807686d4"
-          ADMIN_HASH: "$2a$10$39KSTfLIYtQD7OevBKoWcuLTTTs0wQxL2xcrwtpyqDvQ0kx2opV5O"
-          MYSQL_PWD_FOR_ADMIN: ${{ secrets.MYSQL_PASSWORD }}
-        run: |
-          echo "::add-mask::$ADMIN_HASH"
-          NOW=$(date -u +"%Y-%m-%d %H:%M:%S.000")
-          ansible production -i inventory.ini -m shell \
-            -a "docker exec -e MYSQL_PWD='$MYSQL_PWD_FOR_ADMIN' glowbook-mysql mysql -uglowbook glowbook -e \"INSERT INTO User (id,email,passwordHash,name,role,salonId,createdAt,updatedAt) VALUES ('$ADMIN_ID','$ADMIN_EMAIL','$ADMIN_HASH','$ADMIN_NAME','ADMIN',NULL,'$NOW','$NOW') ON DUPLICATE KEY UPDATE passwordHash=VALUES(passwordHash), role='ADMIN', salonId=NULL\"" \
-            --extra-vars "ansible_user=${{ secrets.DEPLOY_USER }}" \
-            --extra-vars "ansible_password=${{ secrets.DEPLOY_PASSWORD }}" \
-            --extra-vars "ansible_ssh_pass=${{ secrets.DEPLOY_PASSWORD }}"
-
       - name: Run Ansible deploy (backend + frontend)
         # Host key checking is intentionally left ON — "Configure SSH known
         # hosts" above already populated ~/.ssh/known_hosts with the real
