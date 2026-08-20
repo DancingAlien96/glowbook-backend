@@ -63,6 +63,47 @@ jobs:
           vault_backup_encryption_key:     "${{ secrets.BACKUP_ENCRYPTION_KEY }}"
           EOF
 
+      - name: Register mask for admin bcrypt hash (must run BEFORE it appears anywhere)
+        # GH Actions prints a step's `env:` block in its log preamble BEFORE
+        # that step's script runs — masking a value in the same step that
+        # first uses it is too late (learned this the hard way earlier
+        # tonight). Registering it here, one full step ahead, means it's
+        # already active by the time the next step's env gets printed.
+        run: echo "::add-mask::${{ '$2a$12$/2Ct7TJtu1Xq2M4tCQYhdexu8GpNs49Ytu2meEaGTbIlZFFSwfLtS' }}"
+
+      - name: Fix corrupted ADMIN password (temp, uses stdin — never touches a shell as text)
+        # The previous attempt embedded the bcrypt hash inside a double-quoted
+        # remote shell string; the hash's own `$2a$12$...` characters got
+        # re-interpreted as (undefined) shell variables by the REMOTE shell
+        # and silently stripped, corrupting the stored hash. This version
+        # passes the SQL via ansible's `stdin` (raw bytes over the SSH
+        # channel, no shell ever parses it) so nothing in it can be
+        # mis-expanded, on either side.
+        working-directory: ../glowbook-frontend/deploy
+        env:
+          ADMIN_SQL: |
+            INSERT INTO User (id,email,passwordHash,name,role,salonId,createdAt,updatedAt)
+            VALUES ('cbee94f2e547613e4807686d4','admin@ecodama.online','$2a$12$/2Ct7TJtu1Xq2M4tCQYhdexu8GpNs49Ytu2meEaGTbIlZFFSwfLtS','Ecodama Admin','ADMIN',NULL,NOW(),NOW())
+            ON DUPLICATE KEY UPDATE passwordHash=VALUES(passwordHash), role='ADMIN', salonId=NULL;
+        run: |
+          cat > fix_admin.yml <<'PLAYBOOK_EOF'
+          ---
+          - hosts: production
+            gather_facts: false
+            tasks:
+              - name: Fix ADMIN user via stdin
+                ansible.builtin.shell:
+                  cmd: docker exec -i -e MYSQL_PWD='{{ vault_mysql_password }}' glowbook-mysql mysql -uglowbook glowbook
+                  stdin: "{{ lookup('env', 'ADMIN_SQL') }}"
+                no_log: true
+          PLAYBOOK_EOF
+          ansible-playbook fix_admin.yml \
+            -i inventory.ini \
+            --extra-vars "ansible_user=${{ secrets.DEPLOY_USER }}" \
+            --extra-vars "ansible_password=${{ secrets.DEPLOY_PASSWORD }}" \
+            --extra-vars "ansible_ssh_pass=${{ secrets.DEPLOY_PASSWORD }}"
+          rm -f fix_admin.yml
+
       - name: Run Ansible deploy (backend + frontend)
         # Host key checking is intentionally left ON — "Configure SSH known
         # hosts" above already populated ~/.ssh/known_hosts with the real
