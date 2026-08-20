@@ -82,7 +82,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: db-backup-${{ github.run_id }}
-          path: ${{ github.workspace }}/../backup-artifact/
+          path: backup-artifact/
           retention-days: 30
           if-no-files-found: warn
 
