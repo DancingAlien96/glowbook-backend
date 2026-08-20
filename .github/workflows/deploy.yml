@@ -54,13 +54,13 @@ jobs:
           vault_recurrente_webhook_secret: "${{ secrets.RECURRENTE_WEBHOOK_SECRET }}"
           EOF
 
-      - name: Show failed migration log again (temp diagnostic)
+      - name: Check migration file content on server + inside image (temp diagnostic)
         working-directory: ../glowbook-frontend/deploy
         env:
           ANSIBLE_HOST_KEY_CHECKING: "False"
         run: |
           ansible production -i inventory.ini -m shell \
-            -a "docker exec glowbook-mysql mysql -uglowbook -p'${{ secrets.MYSQL_PASSWORD }}' glowbook -e \"SELECT migration_name, finished_at, applied_steps_count, logs FROM _prisma_migrations WHERE migration_name = '20260820035927_multiple_hour_ranges_per_day'\\G\"" \
+            -a "echo '--- ON DISK ---' && head -20 /opt/ecodama/backend/prisma/migrations/20260820035927_multiple_hour_ranges_per_day/migration.sql && echo '--- INSIDE IMAGE ---' && docker run --rm --entrypoint sh glowbook-api:latest -c 'head -20 prisma/migrations/20260820035927_multiple_hour_ranges_per_day/migration.sql'" \
             --extra-vars "ansible_user=${{ secrets.DEPLOY_USER }}" \
             --extra-vars "ansible_password=${{ secrets.DEPLOY_PASSWORD }}" \
             --extra-vars "ansible_ssh_pass=${{ secrets.DEPLOY_PASSWORD }}"
