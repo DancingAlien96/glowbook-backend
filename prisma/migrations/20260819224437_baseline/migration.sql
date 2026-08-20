@@ -1,0 +1,13 @@
+-- Baseline migration.
+--
+-- This project ran on `prisma db push --accept-data-loss` in production
+-- (no migration history) until now. Prisma Migrate refuses to run against a
+-- database that already has tables but no `_prisma_migrations` history
+-- (error P3005 — "the database schema is not empty").
+--
+-- This migration is intentionally empty. It is never executed as SQL; it is
+-- marked as already-applied on the production database via
+-- `prisma migrate resolve --applied 20260819224437_baseline`, which records
+-- it in `_prisma_migrations` without running anything (the tables it would
+-- describe already exist from the prior db-push deploys). Everything after
+-- this point in prisma/migrations runs normally through `migrate deploy`.

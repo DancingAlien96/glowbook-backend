@@ -66,14 +66,27 @@ jobs:
             --extra-vars "ansible_ssh_pass=${{ secrets.DEPLOY_PASSWORD }}" \
             --skip-tags vault
 
-      - name: Show backend container logs (temp diagnostic)
+      - name: One-time baseline of pre-existing production schema (temp)
         if: always()
         working-directory: ../glowbook-frontend/deploy
         env:
           ANSIBLE_HOST_KEY_CHECKING: "False"
         run: |
           ansible production -i inventory.ini -m shell \
-            -a "docker ps -a --filter name=glowbook && echo --- && docker logs --tail 300 glowbook-api" \
+            -a "docker compose -f /opt/ecodama/backend/docker-compose.prod.yml run --rm --entrypoint sh api -c 'npx prisma migrate resolve --applied 20260819224437_baseline' && docker restart glowbook-api" \
+            --extra-vars "ansible_user=${{ secrets.DEPLOY_USER }}" \
+            --extra-vars "ansible_password=${{ secrets.DEPLOY_PASSWORD }}" \
+            --extra-vars "ansible_ssh_pass=${{ secrets.DEPLOY_PASSWORD }}"
+
+      - name: Show backend container logs (temp diagnostic)
+        if: always()
+        working-directory: ../glowbook-frontend/deploy
+        env:
+          ANSIBLE_HOST_KEY_CHECKING: "False"
+        run: |
+          sleep 10
+          ansible production -i inventory.ini -m shell \
+            -a "docker ps -a --filter name=glowbook && echo --- && docker logs --tail 200 glowbook-api" \
             --extra-vars "ansible_user=${{ secrets.DEPLOY_USER }}" \
             --extra-vars "ansible_password=${{ secrets.DEPLOY_PASSWORD }}" \
             --extra-vars "ansible_ssh_pass=${{ secrets.DEPLOY_PASSWORD }}"
