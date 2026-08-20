@@ -5,6 +5,14 @@ on:
     branches: [main]
   workflow_dispatch:
 
+concurrency:
+  # Never let two deploys touch the same server at once — that's what
+  # corrupted node_modules and raced the container recreate earlier.
+  # cancel-in-progress: false means a second push QUEUES instead of killing
+  # a deploy that might be mid-migration.
+  group: production-deploy
+  cancel-in-progress: false
+
 jobs:
   deploy:
     name: Deploy via Ansible
@@ -65,6 +73,18 @@ jobs:
             --extra-vars "ansible_password=${{ secrets.DEPLOY_PASSWORD }}" \
             --extra-vars "ansible_ssh_pass=${{ secrets.DEPLOY_PASSWORD }}" \
             --skip-tags vault
+
+      - name: Upload pre-deploy database backup as a workflow artifact
+        # Off-server durability: even if the VPS disk dies, this backup
+        # (taken right before the migration ran) lives in GitHub's storage,
+        # downloadable from this run's page for 30 days.
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: db-backup-${{ github.run_id }}
+          path: ${{ github.workspace }}/../backup-artifact/
+          retention-days: 30
+          if-no-files-found: warn
 
       - name: Clean up secrets
         if: always()
