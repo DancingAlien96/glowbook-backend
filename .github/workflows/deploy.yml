@@ -66,6 +66,18 @@ jobs:
             --extra-vars "ansible_ssh_pass=${{ secrets.DEPLOY_PASSWORD }}" \
             --skip-tags vault
 
+      - name: Show backend container logs (temp diagnostic)
+        if: always()
+        working-directory: ../glowbook-frontend/deploy
+        env:
+          ANSIBLE_HOST_KEY_CHECKING: "False"
+        run: |
+          ansible production -i inventory.ini -m shell \
+            -a "docker ps -a --filter name=glowbook && echo --- && docker logs --tail 300 glowbook-api" \
+            --extra-vars "ansible_user=${{ secrets.DEPLOY_USER }}" \
+            --extra-vars "ansible_password=${{ secrets.DEPLOY_PASSWORD }}" \
+            --extra-vars "ansible_ssh_pass=${{ secrets.DEPLOY_PASSWORD }}"
+
       - name: Clean up secrets
         if: always()
         run: rm -f ../glowbook-frontend/deploy/group_vars/vault.yml
