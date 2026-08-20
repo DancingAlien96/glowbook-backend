@@ -66,27 +66,14 @@ jobs:
             --extra-vars "ansible_ssh_pass=${{ secrets.DEPLOY_PASSWORD }}" \
             --skip-tags vault
 
-      - name: One-time baseline of pre-existing production schema (temp)
-        if: always()
-        working-directory: ../glowbook-frontend/deploy
-        env:
-          ANSIBLE_HOST_KEY_CHECKING: "False"
-        run: |
-          ansible production -i inventory.ini -m shell \
-            -a "docker compose -f /opt/ecodama/backend/docker-compose.prod.yml run --rm --entrypoint sh api -c 'npx prisma migrate resolve --applied 20260819224437_baseline' && docker restart glowbook-api" \
-            --extra-vars "ansible_user=${{ secrets.DEPLOY_USER }}" \
-            --extra-vars "ansible_password=${{ secrets.DEPLOY_PASSWORD }}" \
-            --extra-vars "ansible_ssh_pass=${{ secrets.DEPLOY_PASSWORD }}"
-
       - name: Verify appointment→service backfill (temp diagnostic)
         if: always()
         working-directory: ../glowbook-frontend/deploy
         env:
           ANSIBLE_HOST_KEY_CHECKING: "False"
         run: |
-          sleep 10
           ansible production -i inventory.ini -m shell \
-            -a "docker exec glowbook-mysql mysql -uroot -p'${{ secrets.MYSQL_ROOT_PASSWORD }}' glowbook -e \"SELECT (SELECT COUNT(*) FROM Appointment) AS appointments, (SELECT COUNT(DISTINCT appointmentId) FROM AppointmentService) AS appointments_with_service_rows, (SELECT COUNT(*) FROM AppointmentService) AS service_rows;\"" \
+            -a "docker exec glowbook-mysql mysql -uglowbook -p'${{ secrets.MYSQL_PASSWORD }}' glowbook -e \"SELECT (SELECT COUNT(*) FROM Appointment) AS appointments, (SELECT COUNT(DISTINCT appointmentId) FROM AppointmentService) AS appointments_with_service_rows, (SELECT COUNT(*) FROM AppointmentService) AS service_rows;\"" \
             --extra-vars "ansible_user=${{ secrets.DEPLOY_USER }}" \
             --extra-vars "ansible_password=${{ secrets.DEPLOY_PASSWORD }}" \
             --extra-vars "ansible_ssh_pass=${{ secrets.DEPLOY_PASSWORD }}"
