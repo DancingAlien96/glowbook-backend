@@ -54,13 +54,13 @@ jobs:
           vault_recurrente_webhook_secret: "${{ secrets.RECURRENTE_WEBHOOK_SECRET }}"
           EOF
 
-      - name: Show real index state on production (temp diagnostic)
+      - name: Resolve failed hours-range migration again for the safer file (temp)
         working-directory: ../glowbook-frontend/deploy
         env:
           ANSIBLE_HOST_KEY_CHECKING: "False"
         run: |
           ansible production -i inventory.ini -m shell \
-            -a "docker exec glowbook-mysql mysql -uglowbook -p'${{ secrets.MYSQL_PASSWORD }}' glowbook -e \"SHOW INDEX FROM BusinessHour; SELECT migration_name, started_at, finished_at, rolled_back_at, applied_steps_count FROM _prisma_migrations WHERE migration_name = '20260820035927_multiple_hour_ranges_per_day' ORDER BY started_at;\"" \
+            -a "docker compose -f /opt/ecodama/backend/docker-compose.prod.yml run --rm --entrypoint sh api -c 'npx prisma migrate resolve --rolled-back 20260820035927_multiple_hour_ranges_per_day'" \
             --extra-vars "ansible_user=${{ secrets.DEPLOY_USER }}" \
             --extra-vars "ansible_password=${{ secrets.DEPLOY_PASSWORD }}" \
             --extra-vars "ansible_ssh_pass=${{ secrets.DEPLOY_PASSWORD }}"

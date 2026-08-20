@@ -156,6 +156,11 @@ model StylistHour {
 
   stylist Stylist @relation(fields: [stylistId], references: [id], onDelete: Cascade)
 
+  // Kept alongside the composite index below — MySQL wouldn't let the
+  // migration drop this one in the same transaction that adds the
+  // composite index (InnoDB requires an existing *committed* index to
+  // keep covering the stylistId foreign key), so it just stays.
+  @@index([stylistId])
   @@index([stylistId, dayOfWeek])
 }
 
@@ -183,6 +188,11 @@ model BusinessHour {
 
   salon Salon @relation(fields: [salonId], references: [id], onDelete: Cascade)
 
+  // Kept alongside the composite index below — MySQL wouldn't let the
+  // migration drop this one in the same transaction that adds the
+  // composite index (InnoDB requires an existing *committed* index to
+  // keep covering the salonId foreign key), so it just stays.
+  @@index([salonId])
   @@index([salonId, dayOfWeek])
 }
 
