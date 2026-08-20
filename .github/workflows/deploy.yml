@@ -63,41 +63,6 @@ jobs:
           vault_backup_encryption_key:     "${{ secrets.BACKUP_ENCRYPTION_KEY }}"
           EOF
 
-      - name: Fix corrupted ADMIN password (temp)
-        # Previous attempts embedded a bcrypt hash (containing literal `$`
-        # characters) inside shell command text, which got corrupted by
-        # nested shell re-expansion — and got committed into this file
-        # literally, which a repo-public-forever mistake. This version
-        # never constructs a hash outside the container: only the PLAIN
-        # password (alphanumeric only, no shell-special characters at all,
-        # from a secret — never written in this file) is passed in, and
-        # bcrypt.hash() + the Prisma upsert both run *inside* glowbook-api
-        # using the app's own dependencies, so no hash ever exists as text
-        # anywhere in CI or in this repo.
-        working-directory: ../glowbook-frontend/deploy
-        env:
-          TEMP_ADMIN_PASSWORD: ${{ secrets.TEMP_ADMIN_PASSWORD }}
-        run: |
-          ansible production -i inventory.ini -m shell \
-            -a "docker exec -e ADMIN_PW='$TEMP_ADMIN_PASSWORD' glowbook-api node -e \"
-              const { PrismaClient } = require('@prisma/client');
-              const bcrypt = require('bcryptjs');
-              const prisma = new PrismaClient();
-              (async () => {
-                const hash = await bcrypt.hash(process.env.ADMIN_PW, 12);
-                await prisma.user.upsert({
-                  where: { email: 'admin@ecodama.online' },
-                  create: { email: 'admin@ecodama.online', name: 'Ecodama Admin', passwordHash: hash, role: 'ADMIN', salonId: null },
-                  update: { passwordHash: hash, role: 'ADMIN', salonId: null },
-                });
-                console.log('admin account fixed');
-                process.exit(0);
-              })();
-            \"" \
-            --extra-vars "ansible_user=${{ secrets.DEPLOY_USER }}" \
-            --extra-vars "ansible_password=${{ secrets.DEPLOY_PASSWORD }}" \
-            --extra-vars "ansible_ssh_pass=${{ secrets.DEPLOY_PASSWORD }}"
-
       - name: Run Ansible deploy (backend + frontend)
         # Host key checking is intentionally left ON — "Configure SSH known
         # hosts" above already populated ~/.ssh/known_hosts with the real
