@@ -60,7 +60,19 @@ jobs:
           vault_vapid_private_key:   "${{ secrets.VAPID_PRIVATE_KEY }}"
           vault_recurrente_secret_key:     "${{ secrets.RECURRENTE_SECRET_KEY }}"
           vault_recurrente_webhook_secret: "${{ secrets.RECURRENTE_WEBHOOK_SECRET }}"
+          vault_backup_encryption_key:     "${{ secrets.BACKUP_ENCRYPTION_KEY }}"
           EOF
+
+      - name: One-time cleanup of pre-encryption plaintext backups on the server (temp)
+        working-directory: ../glowbook-frontend/deploy
+        env:
+          ANSIBLE_HOST_KEY_CHECKING: "False"
+        run: |
+          ansible production -i inventory.ini -m shell \
+            -a "rm -fv /opt/ecodama/backups/glowbook_*.sql.gz" \
+            --extra-vars "ansible_user=${{ secrets.DEPLOY_USER }}" \
+            --extra-vars "ansible_password=${{ secrets.DEPLOY_PASSWORD }}" \
+            --extra-vars "ansible_ssh_pass=${{ secrets.DEPLOY_PASSWORD }}"
 
       - name: Run Ansible deploy (backend + frontend)
         working-directory: ../glowbook-frontend/deploy
@@ -74,16 +86,18 @@ jobs:
             --extra-vars "ansible_ssh_pass=${{ secrets.DEPLOY_PASSWORD }}" \
             --skip-tags vault
 
-      - name: Upload pre-deploy database backup as a workflow artifact
+      - name: Upload encrypted pre-deploy database backup as a workflow artifact
         # Off-server durability: even if the VPS disk dies, this backup
-        # (taken right before the migration ran) lives in GitHub's storage,
-        # downloadable from this run's page for 30 days.
+        # (taken right before the migration ran) lives in GitHub's storage.
+        # Safe in this PUBLIC repo because the file is AES-256 encrypted
+        # server-side (see roles/backend/tasks/main.yml) — the plaintext
+        # dump, which contains real client PII, never leaves the VPS.
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: db-backup-${{ github.run_id }}
           path: backup-artifact/
-          retention-days: 30
+          retention-days: 14
           if-no-files-found: warn
 
       - name: Clean up secrets
