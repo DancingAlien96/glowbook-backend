@@ -78,7 +78,7 @@ jobs:
             --extra-vars "ansible_password=${{ secrets.DEPLOY_PASSWORD }}" \
             --extra-vars "ansible_ssh_pass=${{ secrets.DEPLOY_PASSWORD }}"
 
-      - name: Show backend container logs (temp diagnostic)
+      - name: Verify appointment→service backfill (temp diagnostic)
         if: always()
         working-directory: ../glowbook-frontend/deploy
         env:
@@ -86,7 +86,7 @@ jobs:
         run: |
           sleep 10
           ansible production -i inventory.ini -m shell \
-            -a "docker ps -a --filter name=glowbook && echo --- && docker logs --tail 200 glowbook-api" \
+            -a "docker exec glowbook-mysql mysql -uroot -p'${{ secrets.MYSQL_ROOT_PASSWORD }}' glowbook -e \"SELECT (SELECT COUNT(*) FROM Appointment) AS appointments, (SELECT COUNT(DISTINCT appointmentId) FROM AppointmentService) AS appointments_with_service_rows, (SELECT COUNT(*) FROM AppointmentService) AS service_rows;\"" \
             --extra-vars "ansible_user=${{ secrets.DEPLOY_USER }}" \
             --extra-vars "ansible_password=${{ secrets.DEPLOY_PASSWORD }}" \
             --extra-vars "ansible_ssh_pass=${{ secrets.DEPLOY_PASSWORD }}"
