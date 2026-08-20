@@ -54,17 +54,6 @@ jobs:
           vault_recurrente_webhook_secret: "${{ secrets.RECURRENTE_WEBHOOK_SECRET }}"
           EOF
 
-      - name: Verify data integrity + migration state (temp diagnostic)
-        working-directory: ../glowbook-frontend/deploy
-        env:
-          ANSIBLE_HOST_KEY_CHECKING: "False"
-        run: |
-          ansible production -i inventory.ini -m shell \
-            -a "docker exec glowbook-mysql mysql -uglowbook -p'${{ secrets.MYSQL_PASSWORD }}' glowbook -e \"SELECT (SELECT COUNT(*) FROM Appointment) AS appointments, (SELECT COUNT(*) FROM Client) AS clients, (SELECT COUNT(*) FROM BusinessHour) AS business_hours, (SELECT COUNT(*) FROM StylistHour) AS stylist_hours; SELECT migration_name, finished_at, rolled_back_at FROM _prisma_migrations WHERE migration_name = '20260820035927_multiple_hour_ranges_per_day' ORDER BY started_at;\"" \
-            --extra-vars "ansible_user=${{ secrets.DEPLOY_USER }}" \
-            --extra-vars "ansible_password=${{ secrets.DEPLOY_PASSWORD }}" \
-            --extra-vars "ansible_ssh_pass=${{ secrets.DEPLOY_PASSWORD }}"
-
       - name: Run Ansible deploy (backend + frontend)
         working-directory: ../glowbook-frontend/deploy
         env:
