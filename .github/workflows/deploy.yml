@@ -63,17 +63,6 @@ jobs:
           vault_backup_encryption_key:     "${{ secrets.BACKUP_ENCRYPTION_KEY }}"
           EOF
 
-      - name: One-time cleanup of pre-encryption plaintext backups on the server (temp)
-        working-directory: ../glowbook-frontend/deploy
-        env:
-          ANSIBLE_HOST_KEY_CHECKING: "False"
-        run: |
-          ansible production -i inventory.ini -m shell \
-            -a "rm -fv /opt/ecodama/backups/glowbook_*.sql.gz" \
-            --extra-vars "ansible_user=${{ secrets.DEPLOY_USER }}" \
-            --extra-vars "ansible_password=${{ secrets.DEPLOY_PASSWORD }}" \
-            --extra-vars "ansible_ssh_pass=${{ secrets.DEPLOY_PASSWORD }}"
-
       - name: Run Ansible deploy (backend + frontend)
         working-directory: ../glowbook-frontend/deploy
         env:
