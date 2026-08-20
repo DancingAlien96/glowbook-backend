@@ -54,6 +54,17 @@ jobs:
           vault_recurrente_webhook_secret: "${{ secrets.RECURRENTE_WEBHOOK_SECRET }}"
           EOF
 
+      - name: Clean up stale glowbook-api container name conflict (temp)
+        working-directory: ../glowbook-frontend/deploy
+        env:
+          ANSIBLE_HOST_KEY_CHECKING: "False"
+        run: |
+          ansible production -i inventory.ini -m shell \
+            -a "docker rm -f glowbook-api 2>/dev/null; docker ps -a --filter name=_glowbook-api --format '{{.ID}}' | xargs -r docker rm -f; docker ps -a --filter name=glowbook" \
+            --extra-vars "ansible_user=${{ secrets.DEPLOY_USER }}" \
+            --extra-vars "ansible_password=${{ secrets.DEPLOY_PASSWORD }}" \
+            --extra-vars "ansible_ssh_pass=${{ secrets.DEPLOY_PASSWORD }}"
+
       - name: Run Ansible deploy (backend + frontend)
         working-directory: ../glowbook-frontend/deploy
         env:
