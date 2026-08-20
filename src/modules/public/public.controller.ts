@@ -3,7 +3,8 @@ import { z } from "zod";
 import { asyncHandler } from "../../lib/asyncHandler.js";
 import { validate } from "../../middleware/validate.js";
 import { prisma } from "../../lib/prisma.js";
-import { NotFound } from "../../lib/errors.js";
+import { NotFound, PaymentRequired } from "../../lib/errors.js";
+import { refreshSubscriptionStatus } from "../../lib/billing.js";
 import * as appointments from "../appointments/appointments.service.js";
 import { serviceNames } from "../appointments/appointments.service.js";
 import { sendEmail } from "../../lib/email.js";
@@ -150,6 +151,17 @@ publicRoutes.post(
       },
     });
     if (!salon) throw NotFound("Salon not found");
+
+    // Same hard write-block as the owner dashboard: a salon whose trial +
+    // grace period both expired with no payment can't keep taking bookings
+    // for free through the public page either.
+    const sub = await prisma.subscription.findUnique({ where: { salonId: salon.id } });
+    if (sub) {
+      const fresh = await refreshSubscriptionStatus(sub);
+      if (fresh.status === "SUSPENDED") {
+        throw PaymentRequired("Este salón no está aceptando reservas en este momento.");
+      }
+    }
 
     const data = req.body as z.infer<typeof createBookingSchema>;
     const appointment = await appointments.createAppointment({

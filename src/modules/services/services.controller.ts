@@ -2,6 +2,7 @@ import { Router } from "express";
 import { asyncHandler } from "../../lib/asyncHandler.js";
 import { validate } from "../../middleware/validate.js";
 import { requireAuth, requireRole, requireSalon } from "../../middleware/auth.js";
+import { blockWritesIfSuspended } from "../../middleware/subscription.js";
 import { prisma } from "../../lib/prisma.js";
 import { NotFound } from "../../lib/errors.js";
 import { serviceCreateSchema, serviceUpdateSchema } from "./services.schema.js";
@@ -9,6 +10,7 @@ import { serviceCreateSchema, serviceUpdateSchema } from "./services.schema.js";
 export const servicesRoutes = Router();
 
 servicesRoutes.use(requireAuth, requireRole("OWNER"), requireSalon);
+servicesRoutes.use(blockWritesIfSuspended);
 
 servicesRoutes.get(
   "/",

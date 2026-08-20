@@ -3,6 +3,7 @@ import { z } from "zod";
 import { asyncHandler } from "../../lib/asyncHandler.js";
 import { validate } from "../../middleware/validate.js";
 import { requireAuth, requireRole, requireSalon } from "../../middleware/auth.js";
+import { blockWritesIfSuspended } from "../../middleware/subscription.js";
 import * as svc from "./appointments.service.js";
 import { sendEmail } from "../../lib/email.js";
 import { appointmentConfirmedTemplate } from "../../lib/emails/appointmentConfirmed.js";
@@ -11,6 +12,7 @@ import { serviceNames } from "./appointments.service.js";
 
 export const appointmentsRoutes = Router();
 appointmentsRoutes.use(requireAuth, requireRole("OWNER"), requireSalon);
+appointmentsRoutes.use(blockWritesIfSuspended);
 
 const listQuerySchema = z.object({
   from: z.coerce.date().optional(),

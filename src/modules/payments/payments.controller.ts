@@ -3,6 +3,7 @@ import { z } from "zod";
 import { asyncHandler } from "../../lib/asyncHandler.js";
 import { validate } from "../../middleware/validate.js";
 import { requireAuth, requireRole, requireSalon } from "../../middleware/auth.js";
+import { blockWritesIfSuspended } from "../../middleware/subscription.js";
 import { prisma } from "../../lib/prisma.js";
 import { NotFound } from "../../lib/errors.js";
 import { sendEmail } from "../../lib/email.js";
@@ -13,6 +14,7 @@ import { serviceNames } from "../appointments/appointments.service.js";
 
 export const paymentsRoutes = Router();
 paymentsRoutes.use(requireAuth, requireRole("OWNER"), requireSalon);
+paymentsRoutes.use(blockWritesIfSuspended);
 
 paymentsRoutes.get(
   "/",

@@ -3,10 +3,12 @@ import { z } from "zod";
 import { asyncHandler } from "../../lib/asyncHandler.js";
 import { validate } from "../../middleware/validate.js";
 import { requireAuth, requireRole, requireSalon } from "../../middleware/auth.js";
+import { blockWritesIfSuspended } from "../../middleware/subscription.js";
 import { prisma } from "../../lib/prisma.js";
 
 export const salonRoutes = Router();
 salonRoutes.use(requireAuth, requireRole("OWNER"), requireSalon);
+salonRoutes.use(blockWritesIfSuspended);
 
 const HEX_COLOR = /^#([0-9a-fA-F]{6}|[0-9a-fA-F]{8})$/;
 

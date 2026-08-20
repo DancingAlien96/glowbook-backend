@@ -64,6 +64,7 @@ function statusToCode(status: number): string {
   switch (status) {
     case 400: return "BAD_REQUEST";
     case 401: return "UNAUTHORIZED";
+    case 402: return "SUBSCRIPTION_SUSPENDED";
     case 403: return "FORBIDDEN";
     case 404: return "NOT_FOUND";
     case 409: return "CONFLICT";

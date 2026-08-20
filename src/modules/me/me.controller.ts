@@ -3,6 +3,7 @@ import { z } from "zod";
 import { asyncHandler } from "../../lib/asyncHandler.js";
 import { validate } from "../../middleware/validate.js";
 import { requireAuth, requireStylistUser } from "../../middleware/auth.js";
+import { blockWritesIfSuspended } from "../../middleware/subscription.js";
 import { prisma } from "../../lib/prisma.js";
 import { NotFound, Unauthorized } from "../../lib/errors.js";
 
@@ -10,6 +11,7 @@ export const meRoutes = Router();
 
 // Stylist portal — all routes assume the logged-in user is a STYLIST.
 meRoutes.use(requireAuth, requireStylistUser);
+meRoutes.use(blockWritesIfSuspended);
 
 // Stylist's own profile + linked Stylist record.
 meRoutes.get(

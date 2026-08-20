@@ -4,6 +4,7 @@ import { z } from "zod";
 import { asyncHandler } from "../../lib/asyncHandler.js";
 import { validate } from "../../middleware/validate.js";
 import { requireAuth, requireRole, requireSalon } from "../../middleware/auth.js";
+import { blockWritesIfSuspended } from "../../middleware/subscription.js";
 import { prisma } from "../../lib/prisma.js";
 import { Conflict, NotFound, BadRequest } from "../../lib/errors.js";
 import { sendEmail } from "../../lib/email.js";
@@ -13,6 +14,7 @@ export const staffRoutes = Router();
 
 // Owner only — manages STAFF/STYLIST users plus their linked Stylist record.
 staffRoutes.use(requireAuth, requireRole("OWNER"), requireSalon);
+staffRoutes.use(blockWritesIfSuspended);
 
 const createSchema = z.object({
   name: z.string().min(2).max(120),
