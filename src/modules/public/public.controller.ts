@@ -129,12 +129,14 @@ const createBookingSchema = z.object({
   stylistId: z.string().cuid().optional().nullable(),
   startAt: z.coerce.date(),
   notes: z.string().max(1000).optional().nullable(),
-  // Public flow: name + email + phone all required. The salon needs both
-  // channels to reach the client — email for the booking confirmation, phone
-  // for the day-of reminder over WhatsApp.
+  // Public flow: name + phone required, email optional. Phone is the one
+  // identifier we can always count on (WhatsApp reminder + client dedup in
+  // appointments.service.ts already falls back to phone when there's no
+  // email) — email just adds a confirmation copy when she chooses to share it.
   client: z.object({
     name: z.string().min(2).max(120),
-    email: z.string().email(),
+    email: z.union([z.string().trim().email(), z.literal("")]).optional().nullable()
+      .transform((v) => (v ? v : undefined)),
     phone: z.string().min(5).max(40),
   }),
 });
@@ -201,7 +203,7 @@ publicRoutes.post(
       const tpl = bookingNotifyOwnerTemplate({
         ownerName,
         clientName: data.client.name,
-        clientEmail: data.client.email,
+        clientEmail: data.client.email ?? null,
         clientPhone: data.client.phone,
         salonName: salon.name,
         serviceName: serviceNames(appointment),

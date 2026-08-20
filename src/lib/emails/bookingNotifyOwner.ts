@@ -7,7 +7,7 @@ import { env } from "../../config/env.js";
 export type BookingNotifyOwnerInput = {
   ownerName: string;
   clientName: string;
-  clientEmail: string;
+  clientEmail: string | null;
   clientPhone: string;
   salonName: string;
   serviceName: string;
@@ -38,7 +38,7 @@ export function bookingNotifyOwnerTemplate(input: BookingNotifyOwnerInput) {
       `Revísala en tu panel o responde por WhatsApp para confirmar.`
     )}
     ${infoBox([
-      ["Cliente", `${escape(input.clientName)} (${escape(input.clientEmail)})`],
+      ["Cliente", input.clientEmail ? `${escape(input.clientName)} (${escape(input.clientEmail)})` : escape(input.clientName)],
       ["Teléfono", escape(input.clientPhone)],
       ["Servicio", escape(input.serviceName)],
       ["Estilista", input.stylistName ? escape(input.stylistName) : "Por asignar"],
@@ -51,7 +51,7 @@ export function bookingNotifyOwnerTemplate(input: BookingNotifyOwnerInput) {
     </div>
     ${paragraph(
       `Responde a ${escape(input.clientPhone)} por WhatsApp para confirmar la reserva. ` +
-      `La cliente ya recibió un correo con los detalles.`
+      (input.clientEmail ? `La cliente ya recibió un correo con los detalles.` : `No dejó email, así que solo la puedes contactar por WhatsApp.`)
     )}
   `;
 
@@ -61,7 +61,7 @@ export function bookingNotifyOwnerTemplate(input: BookingNotifyOwnerInput) {
     `¡Nueva reserva en ${input.salonName}!`,
     ``,
     `Cliente: ${input.clientName}`,
-    `Email: ${input.clientEmail}`,
+    ...(input.clientEmail ? [`Email: ${input.clientEmail}`] : []),
     `Teléfono: ${input.clientPhone}`,
     ``,
     `Servicio: ${input.serviceName}`,
