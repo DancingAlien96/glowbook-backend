@@ -27,13 +27,14 @@ jobs:
         run: |
           git clone https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/DancingAlien96/glowbook-frontend.git \
             ${{ github.workspace }}/../glowbook-frontend
-          # Logged so a future "deploy succeeded but content looks stale" report
-          # can be diagnosed in seconds instead of hours: if a frontend push
-          # lands within moments of the backend push that triggers this
-          # workflow, this clone can race ahead of it and silently deploy an
-          # older frontend commit (the health check only covers the backend
-          # API, so that kind of staleness doesn't fail the build).
-          echo "Deploying frontend commit: $(git -C ${{ github.workspace }}/../glowbook-frontend rev-parse HEAD)"
+          # Recorded so the Ansible frontend role can assert the server ends
+          # up on this exact commit: if a frontend push lands within moments
+          # of the backend push that triggers this workflow, this clone can
+          # race ahead of it and silently deploy an older frontend commit
+          # (the health check only covers the backend API, so that kind of
+          # staleness wouldn't otherwise fail the build).
+          echo "FRONTEND_SHA=$(git -C ${{ github.workspace }}/../glowbook-frontend rev-parse HEAD)" >> "$GITHUB_ENV"
+          echo "Deploying frontend commit: $FRONTEND_SHA"
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -82,6 +83,7 @@ jobs:
             --extra-vars "ansible_user=${{ secrets.DEPLOY_USER }}" \
             --extra-vars "ansible_password=${{ secrets.DEPLOY_PASSWORD }}" \
             --extra-vars "ansible_ssh_pass=${{ secrets.DEPLOY_PASSWORD }}" \
+            --extra-vars "expected_frontend_sha=${{ env.FRONTEND_SHA }}" \
             --skip-tags vault
 
       - name: Upload encrypted pre-deploy database backup as a workflow artifact
