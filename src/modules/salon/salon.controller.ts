@@ -18,11 +18,29 @@ salonRoutes.use(blockWritesIfSuspended);
 
 const HEX_COLOR = /^#([0-9a-fA-F]{6}|[0-9a-fA-F]{8})$/;
 
+// z.string().url() alone accepts anything the WHATWG URL parser considers
+// valid — including `javascript:` and other non-http schemes. These URLs
+// end up in an <a href> (social links) or an <img src>/CSS url() (cover,
+// gallery), so restrict to http(s) explicitly rather than trusting .url().
+const httpUrl = (max: number) =>
+  z
+    .string()
+    .max(max)
+    .refine((v) => /^https?:\/\//i.test(v), { message: "Debe ser un enlace http(s) válido" })
+    .refine((v) => {
+      try {
+        new URL(v);
+        return true;
+      } catch {
+        return false;
+      }
+    }, { message: "URL inválida" });
+
 const updateSchema = z.object({
   name: z.string().min(2).max(120).optional(),
   tagline: z.string().max(160).optional().nullable(),
   description: z.string().max(2000).optional().nullable(),
-  coverImageUrl: z.string().url().max(500).optional().nullable(),
+  coverImageUrl: httpUrl(500).optional().nullable(),
   brandColor: z.string().regex(HEX_COLOR, "Use a hex color like #D89888").optional(),
   timezone: z.string().min(3).max(64).optional(),
   currency: z.string().min(3).max(8).optional(),
@@ -31,8 +49,8 @@ const updateSchema = z.object({
   approvalMode: z.enum(["MANUAL", "AUTOMATIC"]).optional(),
   bankDetails: z.string().max(2000).optional().nullable(),
   aboutText: z.string().max(4000).optional().nullable(),
-  instagramUrl: z.string().url().max(300).optional().nullable(),
-  facebookUrl: z.string().url().max(300).optional().nullable(),
+  instagramUrl: httpUrl(300).optional().nullable(),
+  facebookUrl: httpUrl(300).optional().nullable(),
   whatsappContact: z.string().min(5).max(40).optional().nullable(),
 });
 
@@ -89,7 +107,7 @@ salonRoutes.put(
 // the file to UploadThing directly, then calls this with the resulting URL
 // — same pattern as coverImageUrl and payment receipts.
 const addPhotoSchema = z.object({
-  url: z.string().url().max(500),
+  url: httpUrl(500),
   caption: z.string().max(160).optional().nullable(),
 });
 
