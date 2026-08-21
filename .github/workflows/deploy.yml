@@ -27,6 +27,13 @@ jobs:
         run: |
           git clone https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/DancingAlien96/glowbook-frontend.git \
             ${{ github.workspace }}/../glowbook-frontend
+          # Logged so a future "deploy succeeded but content looks stale" report
+          # can be diagnosed in seconds instead of hours: if a frontend push
+          # lands within moments of the backend push that triggers this
+          # workflow, this clone can race ahead of it and silently deploy an
+          # older frontend commit (the health check only covers the backend
+          # API, so that kind of staleness doesn't fail the build).
+          echo "Deploying frontend commit: $(git -C ${{ github.workspace }}/../glowbook-frontend rev-parse HEAD)"
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -62,15 +69,6 @@ jobs:
           vault_recurrente_webhook_secret: "${{ secrets.RECURRENTE_WEBHOOK_SECRET }}"
           vault_backup_encryption_key:     "${{ secrets.BACKUP_ENCRYPTION_KEY }}"
           EOF
-
-      - name: Diagnose stale frontend build (temp)
-        working-directory: ../glowbook-frontend/deploy
-        run: |
-          ansible production -i inventory.ini -m shell \
-            -a "echo '--- source has PublicNavbar? ---'; grep -l PublicNavbar /opt/ecodama/frontend/app/_components/booking/BookingFlow.tsx 2>&1; echo '--- served build has it? ---'; grep -rl 'Reservar cita' /var/www/ecodama/.next/static 2>&1 | head -3; echo '--- served dir mtime ---'; stat -c '%y %n' /var/www/ecodama/server.js 2>&1; echo '--- source dir mtime ---'; stat -c '%y %n' '/opt/ecodama/frontend/app/_components/booking/BookingFlow.tsx' 2>&1; echo '--- pm2 status ---'; pm2 jlist 2>&1 | head -c 800" \
-            --extra-vars "ansible_user=${{ secrets.DEPLOY_USER }}" \
-            --extra-vars "ansible_password=${{ secrets.DEPLOY_PASSWORD }}" \
-            --extra-vars "ansible_ssh_pass=${{ secrets.DEPLOY_PASSWORD }}"
 
       - name: Run Ansible deploy (backend + frontend)
         # Host key checking is intentionally left ON — "Configure SSH known
