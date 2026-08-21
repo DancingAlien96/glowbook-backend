@@ -33,6 +33,14 @@ publicRoutes.get(
         depositMode: true,
         depositPercent: true,
         bankDetails: true,
+        aboutText: true,
+        instagramUrl: true,
+        facebookUrl: true,
+        whatsappContact: true,
+        photos: {
+          orderBy: { createdAt: "asc" },
+          select: { id: true, url: true, caption: true },
+        },
         services: {
           where: { active: true },
           orderBy: { name: "asc" },

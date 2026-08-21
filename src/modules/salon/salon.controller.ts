@@ -6,6 +6,11 @@ import { requireAuth, requireRole, requireSalon } from "../../middleware/auth.js
 import { blockWritesIfSuspended } from "../../middleware/subscription.js";
 import { prisma } from "../../lib/prisma.js";
 import { hoursArraySchema } from "../../lib/hoursValidation.js";
+import { NotFound } from "../../lib/errors.js";
+
+// Cap the gallery generously (enough for a real portfolio) without letting
+// it grow unbounded on the public page.
+const MAX_SALON_PHOTOS = 24;
 
 export const salonRoutes = Router();
 salonRoutes.use(requireAuth, requireRole("OWNER"), requireSalon);
@@ -25,6 +30,10 @@ const updateSchema = z.object({
   depositPercent: z.coerce.number().int().min(0).max(100).optional(),
   approvalMode: z.enum(["MANUAL", "AUTOMATIC"]).optional(),
   bankDetails: z.string().max(2000).optional().nullable(),
+  aboutText: z.string().max(4000).optional().nullable(),
+  instagramUrl: z.string().url().max(300).optional().nullable(),
+  facebookUrl: z.string().url().max(300).optional().nullable(),
+  whatsappContact: z.string().min(5).max(40).optional().nullable(),
 });
 
 salonRoutes.get(
@@ -32,7 +41,10 @@ salonRoutes.get(
   asyncHandler(async (req, res) => {
     const salon = await prisma.salon.findUnique({
       where: { id: req.salonId! },
-      include: { businessHours: { orderBy: { dayOfWeek: "asc" } } },
+      include: {
+        businessHours: { orderBy: { dayOfWeek: "asc" } },
+        photos: { orderBy: { createdAt: "asc" } },
+      },
     });
     res.json({ salon });
   })
@@ -70,6 +82,46 @@ salonRoutes.put(
       orderBy: { dayOfWeek: "asc" },
     });
     res.json({ businessHours });
+  })
+);
+
+// Portfolio gallery shown on the public booking page. The frontend uploads
+// the file to UploadThing directly, then calls this with the resulting URL
+// — same pattern as coverImageUrl and payment receipts.
+const addPhotoSchema = z.object({
+  url: z.string().url().max(500),
+  caption: z.string().max(160).optional().nullable(),
+});
+
+salonRoutes.post(
+  "/me/photos",
+  validate(addPhotoSchema),
+  asyncHandler(async (req, res) => {
+    const salonId = req.salonId!;
+    const count = await prisma.salonPhoto.count({ where: { salonId } });
+    if (count >= MAX_SALON_PHOTOS) {
+      res.status(422).json({
+        error: { code: "TOO_MANY_PHOTOS", message: `Máximo ${MAX_SALON_PHOTOS} fotos en la galería.` },
+      });
+      return;
+    }
+    const { url, caption } = req.body as z.infer<typeof addPhotoSchema>;
+    const photo = await prisma.salonPhoto.create({
+      data: { salonId, url, caption: caption ?? null },
+    });
+    res.status(201).json({ photo });
+  })
+);
+
+salonRoutes.delete(
+  "/me/photos/:id",
+  asyncHandler(async (req, res) => {
+    const existing = await prisma.salonPhoto.findFirst({
+      where: { id: req.params.id!, salonId: req.salonId! },
+    });
+    if (!existing) throw NotFound("Photo not found");
+    await prisma.salonPhoto.delete({ where: { id: existing.id } });
+    res.status(204).end();
   })
 );
 

@@ -71,6 +71,12 @@ model Salon {
   depositPercent   Int      @default(30) // 0-100
   approvalMode     ApprovalMode @default(MANUAL)
   bankDetails      String?  @db.Text // free text shown in transfer step
+  // Landing-page content — public marketing section, separate from the
+  // short `tagline`/`description` used near the hero.
+  aboutText        String?  @db.Text                 // "Quiénes somos" — longer story/philosophy
+  instagramUrl     String?  @db.VarChar(300)
+  facebookUrl      String?  @db.VarChar(300)
+  whatsappContact  String?  @db.VarChar(40)           // Business contact number, distinct from a client's own phone
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
 
@@ -83,6 +89,21 @@ model Salon {
   appointments  Appointment[]
   payments      Payment[]
   subscription  Subscription?
+  photos        SalonPhoto[]
+}
+
+// Portfolio gallery shown on the public booking page — the dueña uploads a
+// handful of work photos to sell the salon visually, not just via text.
+model SalonPhoto {
+  id        String   @id @default(cuid())
+  salonId   String
+  url       String   @db.VarChar(500)
+  caption   String?  @db.VarChar(160)
+  createdAt DateTime @default(now())
+
+  salon Salon @relation(fields: [salonId], references: [id], onDelete: Cascade)
+
+  @@index([salonId, createdAt])
 }
 
 enum DepositMode {
