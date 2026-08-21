@@ -37,9 +37,16 @@ publicRoutes.get(
         instagramUrl: true,
         facebookUrl: true,
         whatsappContact: true,
+        address: true,
+        contactEmail: true,
+        contactPhone: true,
         photos: {
           orderBy: { createdAt: "asc" },
           select: { id: true, url: true, caption: true },
+        },
+        testimonials: {
+          orderBy: { createdAt: "asc" },
+          select: { id: true, clientName: true, text: true, rating: true, serviceName: true },
         },
         services: {
           where: { active: true },
@@ -51,12 +58,13 @@ publicRoutes.get(
             durationMin: true,
             priceCents: true,
             category: true,
+            imageUrl: true,
           },
         },
         stylists: {
           where: { active: true },
           orderBy: { name: "asc" },
-          select: { id: true, name: true, role: true },
+          select: { id: true, name: true, role: true, photoUrl: true },
         },
         businessHours: { orderBy: { dayOfWeek: "asc" } },
       },

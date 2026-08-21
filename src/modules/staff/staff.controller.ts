@@ -9,6 +9,7 @@ import { prisma } from "../../lib/prisma.js";
 import { Conflict, NotFound, BadRequest } from "../../lib/errors.js";
 import { sendEmail } from "../../lib/email.js";
 import { staffInviteTemplate } from "../../lib/emails/staffInvite.js";
+import { httpUrl } from "../../lib/urlValidation.js";
 
 export const staffRoutes = Router();
 
@@ -32,6 +33,7 @@ const updateSchema = z.object({
   active: z.boolean().optional(),
   commissionPercent: z.number().int().min(0).max(100).optional(),
   serviceIds: z.array(z.string().cuid()).optional(),
+  photoUrl: httpUrl(500).optional().nullable(),
 });
 
 const resetPasswordSchema = z.object({
@@ -57,6 +59,7 @@ staffRoutes.get(
             role: true,
             active: true,
             commissionPercent: true,
+            photoUrl: true,
             services: { select: { serviceId: true } },
             hours: { select: { dayOfWeek: true, openMin: true, closeMin: true }, orderBy: { dayOfWeek: "asc" } },
           },
@@ -158,6 +161,7 @@ staffRoutes.patch(
         if (input.stylistRole !== undefined) stylistData.role = input.stylistRole;
         if (input.active !== undefined) stylistData.active = input.active;
         if (input.commissionPercent !== undefined) stylistData.commissionPercent = input.commissionPercent;
+        if (input.photoUrl !== undefined) stylistData.photoUrl = input.photoUrl;
         if (Object.keys(stylistData).length > 0) {
           await tx.stylist.update({ where: { id: target.stylist.id }, data: stylistData });
         }

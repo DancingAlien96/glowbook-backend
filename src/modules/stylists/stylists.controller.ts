@@ -7,6 +7,7 @@ import { blockWritesIfSuspended } from "../../middleware/subscription.js";
 import { prisma } from "../../lib/prisma.js";
 import { NotFound } from "../../lib/errors.js";
 import { hoursArraySchema } from "../../lib/hoursValidation.js";
+import { httpUrl } from "../../lib/urlValidation.js";
 
 export const stylistsRoutes = Router();
 stylistsRoutes.use(requireAuth, requireRole("OWNER"), requireSalon);
@@ -18,6 +19,7 @@ const createSchema = z.object({
   active: z.coerce.boolean().optional(),
   commissionPercent: z.number().int().min(0).max(100).optional(),
   serviceIds: z.array(z.string().cuid()).optional(),
+  photoUrl: httpUrl(500).optional().nullable(),
 });
 
 const updateSchema = createSchema.partial();

@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { httpUrl } from "../../lib/urlValidation.js";
 
 export const serviceCreateSchema = z.object({
   name: z.string().min(2).max(120),
@@ -8,6 +9,7 @@ export const serviceCreateSchema = z.object({
   priceCents: z.coerce.number().int().min(0),
   active: z.coerce.boolean().optional(),
   stylistIds: z.array(z.string().cuid()).optional(),
+  imageUrl: httpUrl(500).optional().nullable(),
 });
 export type ServiceCreateInput = z.infer<typeof serviceCreateSchema>;
 

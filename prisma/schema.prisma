@@ -77,6 +77,9 @@ model Salon {
   instagramUrl     String?  @db.VarChar(300)
   facebookUrl      String?  @db.VarChar(300)
   whatsappContact  String?  @db.VarChar(40)           // Business contact number, distinct from a client's own phone
+  address          String?  @db.VarChar(300)          // Physical location shown on the public page
+  contactEmail     String?  @db.VarChar(200)          // Public contact email, distinct from any owner's login email
+  contactPhone     String?  @db.VarChar(40)            // Landline/phone for a tel: link, distinct from whatsappContact
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
 
@@ -90,6 +93,7 @@ model Salon {
   payments      Payment[]
   subscription  Subscription?
   photos        SalonPhoto[]
+  testimonials  Testimonial[]
 }
 
 // Portfolio gallery shown on the public booking page — the dueña uploads a
@@ -100,6 +104,22 @@ model SalonPhoto {
   url       String   @db.VarChar(500)
   caption   String?  @db.VarChar(160)
   createdAt DateTime @default(now())
+
+  salon Salon @relation(fields: [salonId], references: [id], onDelete: Cascade)
+
+  @@index([salonId, createdAt])
+}
+
+// Testimonials shown on the public page — written/pasted by the dueña
+// herself; there's no client-facing review-collection flow (yet).
+model Testimonial {
+  id          String   @id @default(cuid())
+  salonId     String
+  clientName  String   @db.VarChar(120)
+  text        String   @db.Text
+  rating      Int      // 1-5
+  serviceName String?  @db.VarChar(120)
+  createdAt   DateTime @default(now())
 
   salon Salon @relation(fields: [salonId], references: [id], onDelete: Cascade)
 
@@ -129,6 +149,7 @@ model Service {
   durationMin   Int
   priceCents    Int
   active        Boolean @default(true)
+  imageUrl      String? @db.VarChar(500) // Shown on the public page's service cards
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
@@ -146,6 +167,7 @@ model Stylist {
   userId    String? @unique
   name      String
   role      String? @db.VarChar(128)
+  photoUrl  String? @db.VarChar(500) // Shown on the public page's "Equipo" section
   active    Boolean @default(true)
   // Percentage of the service price that goes to the stylist on COMPLETED
   // appointments. 0 = no commission tracked, 100 = full price. The dueña

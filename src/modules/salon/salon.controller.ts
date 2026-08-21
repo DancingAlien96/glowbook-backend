@@ -6,35 +6,19 @@ import { requireAuth, requireRole, requireSalon } from "../../middleware/auth.js
 import { blockWritesIfSuspended } from "../../middleware/subscription.js";
 import { prisma } from "../../lib/prisma.js";
 import { hoursArraySchema } from "../../lib/hoursValidation.js";
+import { httpUrl } from "../../lib/urlValidation.js";
 import { NotFound } from "../../lib/errors.js";
 
 // Cap the gallery generously (enough for a real portfolio) without letting
 // it grow unbounded on the public page.
 const MAX_SALON_PHOTOS = 24;
+const MAX_TESTIMONIALS = 30;
 
 export const salonRoutes = Router();
 salonRoutes.use(requireAuth, requireRole("OWNER"), requireSalon);
 salonRoutes.use(blockWritesIfSuspended);
 
 const HEX_COLOR = /^#([0-9a-fA-F]{6}|[0-9a-fA-F]{8})$/;
-
-// z.string().url() alone accepts anything the WHATWG URL parser considers
-// valid — including `javascript:` and other non-http schemes. These URLs
-// end up in an <a href> (social links) or an <img src>/CSS url() (cover,
-// gallery), so restrict to http(s) explicitly rather than trusting .url().
-const httpUrl = (max: number) =>
-  z
-    .string()
-    .max(max)
-    .refine((v) => /^https?:\/\//i.test(v), { message: "Debe ser un enlace http(s) válido" })
-    .refine((v) => {
-      try {
-        new URL(v);
-        return true;
-      } catch {
-        return false;
-      }
-    }, { message: "URL inválida" });
 
 const updateSchema = z.object({
   name: z.string().min(2).max(120).optional(),
@@ -52,6 +36,9 @@ const updateSchema = z.object({
   instagramUrl: httpUrl(300).optional().nullable(),
   facebookUrl: httpUrl(300).optional().nullable(),
   whatsappContact: z.string().min(5).max(40).optional().nullable(),
+  address: z.string().max(300).optional().nullable(),
+  contactEmail: z.string().email().max(200).optional().nullable(),
+  contactPhone: z.string().min(5).max(40).optional().nullable(),
 });
 
 salonRoutes.get(
@@ -62,6 +49,7 @@ salonRoutes.get(
       include: {
         businessHours: { orderBy: { dayOfWeek: "asc" } },
         photos: { orderBy: { createdAt: "asc" } },
+        testimonials: { orderBy: { createdAt: "asc" } },
       },
     });
     res.json({ salon });
@@ -139,6 +127,47 @@ salonRoutes.delete(
     });
     if (!existing) throw NotFound("Photo not found");
     await prisma.salonPhoto.delete({ where: { id: existing.id } });
+    res.status(204).end();
+  })
+);
+
+// Testimonials shown on the public page. The dueña writes/pastes them
+// herself — there's no client-facing review-collection flow (yet).
+const addTestimonialSchema = z.object({
+  clientName: z.string().min(2).max(120),
+  text: z.string().min(1).max(1000),
+  rating: z.coerce.number().int().min(1).max(5),
+  serviceName: z.string().max(120).optional().nullable(),
+});
+
+salonRoutes.post(
+  "/me/testimonials",
+  validate(addTestimonialSchema),
+  asyncHandler(async (req, res) => {
+    const salonId = req.salonId!;
+    const count = await prisma.testimonial.count({ where: { salonId } });
+    if (count >= MAX_TESTIMONIALS) {
+      res.status(422).json({
+        error: { code: "TOO_MANY_TESTIMONIALS", message: `Máximo ${MAX_TESTIMONIALS} testimonios.` },
+      });
+      return;
+    }
+    const data = req.body as z.infer<typeof addTestimonialSchema>;
+    const testimonial = await prisma.testimonial.create({
+      data: { salonId, ...data, serviceName: data.serviceName ?? null },
+    });
+    res.status(201).json({ testimonial });
+  })
+);
+
+salonRoutes.delete(
+  "/me/testimonials/:id",
+  asyncHandler(async (req, res) => {
+    const existing = await prisma.testimonial.findFirst({
+      where: { id: req.params.id!, salonId: req.salonId! },
+    });
+    if (!existing) throw NotFound("Testimonial not found");
+    await prisma.testimonial.delete({ where: { id: existing.id } });
     res.status(204).end();
   })
 );
