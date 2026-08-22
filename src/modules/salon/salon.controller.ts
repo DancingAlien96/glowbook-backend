@@ -37,6 +37,8 @@ const updateSchema = z.object({
   facebookUrl: httpUrl(300).optional().nullable(),
   whatsappContact: z.string().min(5).max(40).optional().nullable(),
   address: z.string().max(300).optional().nullable(),
+  latitude: z.coerce.number().min(-90).max(90).optional().nullable(),
+  longitude: z.coerce.number().min(-180).max(180).optional().nullable(),
   contactEmail: z.string().email().max(200).optional().nullable(),
   contactPhone: z.string().min(5).max(40).optional().nullable(),
 });
@@ -65,6 +67,64 @@ salonRoutes.patch(
       data: req.body as z.infer<typeof updateSchema>,
     });
     res.json({ salon });
+  })
+);
+
+// Address search + reverse geocoding for the dashboard's map picker —
+// proxied server-side through OpenStreetMap's free Nominatim service so we
+// never need a paid maps API key/billing account, and so the required
+// identifying User-Agent (Nominatim's usage policy) lives in one place
+// instead of every browser making the request directly.
+const NOMINATIM_HEADERS = {
+  "User-Agent": "GlowBook/1.0 (+https://ecodama.online; soporte@ecodama.online)",
+  "Accept-Language": "es",
+};
+
+const geocodeSearchSchema = z.object({ q: z.string().min(2).max(200) });
+
+salonRoutes.get(
+  "/me/geocode",
+  asyncHandler(async (req, res) => {
+    const parsed = geocodeSearchSchema.safeParse(req.query);
+    if (!parsed.success) {
+      res.status(422).json({ error: { code: "VALIDATION", message: "Escribe al menos 2 caracteres." } });
+      return;
+    }
+    const url = `https://nominatim.openstreetmap.org/search?format=json&limit=5&q=${encodeURIComponent(parsed.data.q)}`;
+    const r = await fetch(url, { headers: NOMINATIM_HEADERS });
+    if (!r.ok) {
+      res.status(502).json({ error: { code: "GEOCODE_FAILED", message: "No pudimos buscar esa dirección." } });
+      return;
+    }
+    const results = (await r.json()) as { lat: string; lon: string; display_name: string }[];
+    res.json({
+      results: results.map((x) => ({ lat: Number(x.lat), lon: Number(x.lon), label: x.display_name })),
+    });
+  })
+);
+
+const geocodeReverseSchema = z.object({
+  lat: z.coerce.number().min(-90).max(90),
+  lon: z.coerce.number().min(-180).max(180),
+});
+
+salonRoutes.get(
+  "/me/geocode/reverse",
+  asyncHandler(async (req, res) => {
+    const parsed = geocodeReverseSchema.safeParse(req.query);
+    if (!parsed.success) {
+      res.status(422).json({ error: { code: "VALIDATION", message: "Coordenadas inválidas." } });
+      return;
+    }
+    const { lat, lon } = parsed.data;
+    const url = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}`;
+    const r = await fetch(url, { headers: NOMINATIM_HEADERS });
+    if (!r.ok) {
+      res.status(502).json({ error: { code: "GEOCODE_FAILED", message: "No pudimos identificar esa dirección." } });
+      return;
+    }
+    const result = (await r.json()) as { display_name?: string };
+    res.json({ label: result.display_name ?? null });
   })
 );
 

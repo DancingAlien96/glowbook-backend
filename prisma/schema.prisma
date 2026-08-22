@@ -77,7 +77,9 @@ model Salon {
   instagramUrl     String?  @db.VarChar(300)
   facebookUrl      String?  @db.VarChar(300)
   whatsappContact  String?  @db.VarChar(40)           // Business contact number, distinct from a client's own phone
-  address          String?  @db.VarChar(300)          // Physical location shown on the public page
+  address          String?  @db.VarChar(300)          // Human-readable label shown on the public page — auto-filled from the map pin, editable
+  latitude         Float?                             // GPS pin dropped in the dashboard's map picker, not typed
+  longitude        Float?
   contactEmail     String?  @db.VarChar(200)          // Public contact email, distinct from any owner's login email
   contactPhone     String?  @db.VarChar(40)            // Landline/phone for a tel: link, distinct from whatsappContact
   createdAt        DateTime @default(now())

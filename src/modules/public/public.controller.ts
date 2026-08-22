@@ -38,6 +38,8 @@ publicRoutes.get(
         facebookUrl: true,
         whatsappContact: true,
         address: true,
+        latitude: true,
+        longitude: true,
         contactEmail: true,
         contactPhone: true,
         photos: {
