@@ -71,6 +71,15 @@ jobs:
           vault_backup_encryption_key:     "${{ secrets.BACKUP_ENCRYPTION_KEY }}"
           EOF
 
+      - name: Diagnose billing + double-booking reports (temp, read-only, no PII)
+        working-directory: ../glowbook-frontend/deploy
+        run: |
+          ansible production -i inventory.ini -m shell \
+            -a "echo '--- pending subscription receipts ---'; docker exec -e MYSQL_PWD='${{ secrets.MYSQL_PASSWORD }}' glowbook-mysql mysql -u glowbook glowbook -e \"SELECT sp.id, sp.subscriptionId, sp.status, sp.periodMonths, sp.createdAt, sp.reviewedAt, s.salonId FROM SubscriptionPayment sp JOIN Subscription s ON s.id = sp.subscriptionId WHERE sp.status='PENDING_REVIEW' ORDER BY sp.createdAt DESC LIMIT 15;\" 2>&1; echo '--- overdue/suspended subscriptions ---'; docker exec -e MYSQL_PWD='${{ secrets.MYSQL_PASSWORD }}' glowbook-mysql mysql -u glowbook glowbook -e \"SELECT sub.id, sub.salonId, sub.status, sub.currentPeriodEnd, sub.trialEndsAt, sub.updatedAt, sal.name FROM Subscription sub JOIN Salon sal ON sal.id = sub.salonId WHERE sub.status IN ('OVERDUE','SUSPENDED') ORDER BY sub.updatedAt DESC LIMIT 15;\" 2>&1; echo '--- appointment status counts, last 14 days ---'; docker exec -e MYSQL_PWD='${{ secrets.MYSQL_PASSWORD }}' glowbook-mysql mysql -u glowbook glowbook -e \"SELECT status, COUNT(*) FROM Appointment WHERE createdAt > NOW() - INTERVAL 14 DAY GROUP BY status;\" 2>&1; echo '--- recent appointments (no PII) ---'; docker exec -e MYSQL_PWD='${{ secrets.MYSQL_PASSWORD }}' glowbook-mysql mysql -u glowbook glowbook -e \"SELECT id, salonId, stylistId, status, startAt, endAt, createdAt FROM Appointment WHERE createdAt > NOW() - INTERVAL 7 DAY ORDER BY createdAt DESC LIMIT 20;\" 2>&1" \
+            --extra-vars "ansible_user=${{ secrets.DEPLOY_USER }}" \
+            --extra-vars "ansible_password=${{ secrets.DEPLOY_PASSWORD }}" \
+            --extra-vars "ansible_ssh_pass=${{ secrets.DEPLOY_PASSWORD }}"
+
       - name: Run Ansible deploy (backend + frontend)
         # Host key checking is intentionally left ON — "Configure SSH known
         # hosts" above already populated ~/.ssh/known_hosts with the real
