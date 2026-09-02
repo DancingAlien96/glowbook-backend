@@ -168,6 +168,7 @@ publicRoutes.post(
       select: {
         id: true, name: true, slug: true, currency: true,
         depositMode: true, depositPercent: true, bankDetails: true,
+        timezone: true,
       },
     });
     if (!salon) throw NotFound("Salon not found");
@@ -206,6 +207,7 @@ publicRoutes.post(
         depositCents: appointment.depositCents,
         currency: salon.currency,
         requiresReceipt: salon.depositMode !== "NONE",
+        timezone: salon.timezone,
       });
       sendEmail({ to: data.client.email, subject: tpl.subject, html: tpl.html, text: tpl.text });
     }
@@ -231,6 +233,7 @@ publicRoutes.post(
         depositCents: appointment.depositCents,
         currency: salon.currency,
         requiresReceipt: salon.depositMode !== "NONE",
+        timezone: salon.timezone,
       });
       sendEmail({ to: ownerEmails, subject: tpl.subject, html: tpl.html, text: tpl.text });
     }
@@ -238,6 +241,7 @@ publicRoutes.post(
     // Push to the salon's owner(s) — and to the chosen stylist if any.
     const when = new Date(appointment.startAt).toLocaleString("es-EC", {
       day: "numeric", month: "short", hour: "2-digit", minute: "2-digit",
+      timeZone: salon.timezone,
     });
     void sendPushToSalonOwners(salon.id, {
       title: "Nueva reserva ✨",

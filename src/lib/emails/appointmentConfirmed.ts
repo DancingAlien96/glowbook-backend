@@ -12,15 +12,17 @@ export type AppointmentConfirmedInput = {
   stylistName: string | null;
   startAt: Date;
   durationMin: number;
+  timezone: string;
 };
 
-const formatDate = (d: Date) =>
+const formatDate = (d: Date, tz: string) =>
   d.toLocaleString("es-EC", {
     weekday: "long",
     day: "numeric",
     month: "long",
     hour: "2-digit",
     minute: "2-digit",
+    timeZone: tz,
   });
 
 export function appointmentConfirmedTemplate(input: AppointmentConfirmedInput) {
@@ -35,7 +37,7 @@ export function appointmentConfirmedTemplate(input: AppointmentConfirmedInput) {
     ${infoBox([
       ["Servicio", escape(input.serviceName)],
       ["Estilista", input.stylistName ? escape(input.stylistName) : "Te asignamos al llegar"],
-      ["Cuándo", formatDate(input.startAt)],
+      ["Cuándo", formatDate(input.startAt, input.timezone)],
       ["Duración", `${input.durationMin} min`],
     ])}
     <div style="text-align:center;margin:8px 0 4px">
@@ -53,7 +55,7 @@ export function appointmentConfirmedTemplate(input: AppointmentConfirmedInput) {
     ``,
     `Servicio: ${input.serviceName}`,
     `Estilista: ${input.stylistName ?? "por asignar"}`,
-    `Fecha: ${formatDate(input.startAt)}`,
+    `Fecha: ${formatDate(input.startAt, input.timezone)}`,
     `Duración: ${input.durationMin} min`,
     ``,
     `Te esperamos ✨`,
@@ -61,7 +63,7 @@ export function appointmentConfirmedTemplate(input: AppointmentConfirmedInput) {
 
   return {
     subject,
-    html: wrap(body, { preheader: `Confirmada · ${formatDate(input.startAt)}` }),
+    html: wrap(body, { preheader: `Confirmada · ${formatDate(input.startAt, input.timezone)}` }),
     text,
   };
 }

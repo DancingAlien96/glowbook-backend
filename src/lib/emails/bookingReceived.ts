@@ -12,15 +12,17 @@ export type BookingReceivedInput = {
   depositCents: number;
   currency: string;
   requiresReceipt: boolean;
+  timezone: string;
 };
 
-const formatDate = (d: Date) =>
+const formatDate = (d: Date, tz: string) =>
   d.toLocaleString("es-EC", {
     weekday: "long",
     day: "numeric",
     month: "long",
     hour: "2-digit",
     minute: "2-digit",
+    timeZone: tz,
   });
 
 const money = (cents: number, currency: string) =>
@@ -39,7 +41,7 @@ export function bookingReceivedTemplate(input: BookingReceivedInput) {
     ${infoBox([
       ["Servicio", input.serviceName],
       ["Estilista", input.stylistName ?? "Te asignamos al llegar"],
-      ["Cuándo", formatDate(input.startAt)],
+      ["Cuándo", formatDate(input.startAt, input.timezone)],
       ["Duración", `${input.durationMin} min`],
       ...(input.requiresReceipt
         ? ([["Anticipo enviado", money(input.depositCents, input.currency)]] as Array<[string, string]>)
@@ -59,7 +61,7 @@ export function bookingReceivedTemplate(input: BookingReceivedInput) {
     `Recibimos tu reserva en ${input.salonName}.`,
     `Servicio: ${input.serviceName}`,
     `Estilista: ${input.stylistName ?? "por asignar"}`,
-    `Fecha: ${formatDate(input.startAt)}`,
+    `Fecha: ${formatDate(input.startAt, input.timezone)}`,
     `Duración: ${input.durationMin} min`,
     input.requiresReceipt ? `Anticipo: ${money(input.depositCents, input.currency)} (pendiente de validación)` : "",
     ``,

@@ -9,15 +9,17 @@ export type BookingConfirmedInput = {
   stylistName: string | null;
   startAt: Date;
   durationMin: number;
+  timezone: string;
 };
 
-const formatDate = (d: Date) =>
+const formatDate = (d: Date, tz: string) =>
   d.toLocaleString("es-EC", {
     weekday: "long",
     day: "numeric",
     month: "long",
     hour: "2-digit",
     minute: "2-digit",
+    timeZone: tz,
   });
 
 export function bookingConfirmedTemplate(input: BookingConfirmedInput) {
@@ -31,7 +33,7 @@ export function bookingConfirmedTemplate(input: BookingConfirmedInput) {
     ${infoBox([
       ["Servicio", input.serviceName],
       ["Estilista", input.stylistName ?? "Te asignamos al llegar"],
-      ["Cuándo", formatDate(input.startAt)],
+      ["Cuándo", formatDate(input.startAt, input.timezone)],
       ["Duración", `${input.durationMin} min`],
     ])}
     <div style="text-align:center;margin:8px 0 4px">
@@ -48,11 +50,11 @@ export function bookingConfirmedTemplate(input: BookingConfirmedInput) {
     `Tu cita en ${input.salonName} está confirmada.`,
     `Servicio: ${input.serviceName}`,
     `Estilista: ${input.stylistName ?? "por asignar"}`,
-    `Fecha: ${formatDate(input.startAt)}`,
+    `Fecha: ${formatDate(input.startAt, input.timezone)}`,
     `Duración: ${input.durationMin} min`,
     ``,
     `Te esperamos ✨`,
   ].join("\n");
 
-  return { subject, html: wrap(body, { preheader: `Confirmada · ${formatDate(input.startAt)}` }), text };
+  return { subject, html: wrap(body, { preheader: `Confirmada · ${formatDate(input.startAt, input.timezone)}` }), text };
 }

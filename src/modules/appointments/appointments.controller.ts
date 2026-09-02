@@ -92,6 +92,7 @@ appointmentsRoutes.post(
         stylistName: appointment.stylist?.name ?? null,
         startAt: appointment.startAt,
         durationMin: appointment.durationMin,
+        timezone: appointment.salon.timezone,
       });
       sendEmail({ to: appointment.client.email, subject: tpl.subject, html: tpl.html, text: tpl.text });
     }
@@ -100,6 +101,7 @@ appointmentsRoutes.post(
     if (appointment.stylist?.id) {
       const when = new Date(appointment.startAt).toLocaleString("es-EC", {
         day: "numeric", month: "short", hour: "2-digit", minute: "2-digit",
+        timeZone: appointment.salon.timezone,
       });
       void sendPushToStylist(appointment.stylist.id, {
         title: "Nueva cita asignada",
@@ -142,6 +144,7 @@ appointmentsRoutes.patch(
     if (appointment.stylist?.id && (body.startAt || body.serviceIds || body.stylistId !== undefined)) {
       const when = new Date(appointment.startAt).toLocaleString("es-EC", {
         day: "numeric", month: "short", hour: "2-digit", minute: "2-digit",
+        timeZone: appointment.salon.timezone,
       });
       void sendPushToStylist(appointment.stylist.id, {
         title: "Cita reprogramada",

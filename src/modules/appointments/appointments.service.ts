@@ -177,7 +177,7 @@ export async function createAppointment(input: CreateAppointmentInput) {
         })),
       },
     },
-    include: { ...appointmentInclude, salon: { select: { name: true, slug: true } } },
+    include: { ...appointmentInclude, salon: { select: { name: true, slug: true, timezone: true } } },
   });
 
   return appointment;
@@ -279,7 +279,7 @@ export async function updateAppointment(
           }
         : {}),
     },
-    include: appointmentInclude,
+    include: { ...appointmentInclude, salon: { select: { name: true, slug: true, timezone: true } } },
   });
 
   return updated;

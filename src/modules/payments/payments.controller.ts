@@ -65,7 +65,7 @@ paymentsRoutes.post(
       where: { id: payment.appointmentId },
       select: {
         startAt: true, durationMin: true,
-        salon: { select: { name: true, slug: true } },
+        salon: { select: { name: true, slug: true, timezone: true } },
         services: { include: { service: { select: { name: true } } } },
         stylist: { select: { name: true } },
         client: { select: { name: true, email: true } },
@@ -80,6 +80,7 @@ paymentsRoutes.post(
         stylistName: appt.stylist?.name ?? null,
         startAt: appt.startAt,
         durationMin: appt.durationMin,
+        timezone: appt.salon.timezone,
       });
       sendEmail({ to: appt.client.email, subject: tpl.subject, html: tpl.html, text: tpl.text });
     }
@@ -135,7 +136,7 @@ publicPaymentsRoutes.post(
       where: { id: appointmentId },
       select: {
         id: true, salonId: true, depositCents: true, startAt: true,
-        salon: { select: { name: true, currency: true } },
+        salon: { select: { name: true, currency: true, timezone: true } },
         services: { include: { service: { select: { name: true } } } },
         client: { select: { name: true } },
       },
@@ -169,6 +170,7 @@ publicPaymentsRoutes.post(
         startAt: appointment.startAt,
         amountCents: appointment.depositCents,
         currency: appointment.salon.currency,
+        timezone: appointment.salon.timezone,
       });
       sendEmail({ to: owner.email, subject: tpl.subject, html: tpl.html, text: tpl.text });
     }

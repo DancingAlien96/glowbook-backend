@@ -17,6 +17,7 @@ export type BookingNotifyOwnerInput = {
   depositCents: number;
   currency: string;
   requiresReceipt: boolean;
+  timezone: string;
 };
 
 export function bookingNotifyOwnerTemplate(input: BookingNotifyOwnerInput) {
@@ -29,6 +30,7 @@ export function bookingNotifyOwnerTemplate(input: BookingNotifyOwnerInput) {
     month: "long",
     hour: "2-digit",
     minute: "2-digit",
+    timeZone: input.timezone,
   });
 
   const body = `
