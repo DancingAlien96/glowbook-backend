@@ -41,10 +41,9 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Install Ansible and sshpass
+      - name: Install Ansible
         run: |
           pip install ansible
-          sudo apt-get install -y sshpass
 
       - name: Install Ansible collections
         working-directory: ../glowbook-frontend/deploy
@@ -54,6 +53,17 @@ jobs:
         run: |
           mkdir -p ~/.ssh
           ssh-keyscan -H ${{ secrets.DEPLOY_HOST }} >> ~/.ssh/known_hosts
+
+      - name: Install the deploy SSH key
+        # Key auth instead of sshpass + DEPLOY_PASSWORD: the password broke
+        # the pipeline silently once the server's credentials changed, and a
+        # password travelling through Ansible's command line is worse than a
+        # key file. `install -m 600 /dev/null` creates the file already
+        # locked down, so the key is never briefly world-readable.
+        run: |
+          mkdir -p ~/.ssh
+          install -m 600 /dev/null ~/.ssh/deploy_key
+          echo "${{ secrets.DEPLOY_SSH_KEY }}" > ~/.ssh/deploy_key
 
       - name: Generate vault.yml from GitHub secrets
         run: |
@@ -80,9 +90,8 @@ jobs:
         run: |
           ansible-playbook site.yml \
             --tags deploy \
+            --private-key ~/.ssh/deploy_key \
             --extra-vars "ansible_user=${{ secrets.DEPLOY_USER }}" \
-            --extra-vars "ansible_password=${{ secrets.DEPLOY_PASSWORD }}" \
-            --extra-vars "ansible_ssh_pass=${{ secrets.DEPLOY_PASSWORD }}" \
             --extra-vars "expected_frontend_sha=${{ env.FRONTEND_SHA }}" \
             --skip-tags vault
 
@@ -102,4 +111,4 @@ jobs:
 
       - name: Clean up secrets
         if: always()
-        run: rm -f ../glowbook-frontend/deploy/group_vars/vault.yml
+        run: rm -f ../glowbook-frontend/deploy/group_vars/vault.yml ~/.ssh/deploy_key
