@@ -2,6 +2,7 @@ import { Router, Request, Response } from "express";
 import { Webhook } from "svix";
 import { prisma } from "../../lib/prisma.js";
 import { applyApprovedPayment } from "../../lib/billing.js";
+import { getRecurrenteCheckout } from "../../lib/recurrente.js";
 import { env } from "../../config/env.js";
 import { sendEmail } from "../../lib/email.js";
 import { paymentPendingTemplate } from "../../lib/emails/paymentPending.js";
@@ -40,8 +41,16 @@ recurrenteWebhookRouter.post(
       await handleEvent(event);
     } catch (err) {
       console.error("[recurrente-webhook] Handler error:", err);
-      res.status(200).json({ received: true, warning: "Handler error — check logs" });
-      return;
+    }
+
+    // Safety net — independent of the event type/shape: ask Recurrente directly
+    // about any checkout we created that is still pending, and activate the ones
+    // that were paid. This is what guarantees a subscription payment lands on
+    // the right salon even when the event body doesn't carry the checkout id.
+    try {
+      await reconcilePendingCheckouts();
+    } catch (err) {
+      console.error("[recurrente-webhook] Reconcile sweep failed:", err);
     }
 
     res.status(200).json({ received: true });
@@ -112,29 +121,11 @@ async function handleEvent(event: RecurrenteEvent) {
       if (checkoutId) {
         const session = await prisma.checkoutSession.findUnique({ where: { checkoutId } });
         if (session) {
-          const sub = await prisma.subscription.findUnique({ where: { salonId: session.salonId } });
-          if (sub) {
-            const periodMonths = session.plan === "LIFETIME" ? 999 : session.plan === "YEARLY" ? 12 : 1;
-            const amountCents = extractAmountCents(event) ?? session.amountCents;
-            await prisma.subscriptionPayment.create({
-              data: {
-                subscriptionId: sub.id,
-                amountCents,
-                periodMonths,
-                status: "APPROVED",
-                reference: extractReference(event),
-                reviewedAt: new Date(),
-                reviewedBy: "recurrente-webhook",
-              },
-            });
-            await applyApprovedPayment({ subscriptionId: sub.id, periodMonths, plan: session.plan });
-            await prisma.checkoutSession.update({
-              where: { id: session.id },
-              data: { status: "COMPLETED" },
-            });
-            console.log(`[recurrente-webhook] Activated via checkout mapping: salon ${session.salonId} (${session.plan})`);
-            return;
-          }
+          await activateFromCheckoutSession(session, {
+            amountCents: extractAmountCents(event),
+            reference: extractReference(event),
+          });
+          return;
         }
         console.warn(`[recurrente-webhook] checkoutId ${checkoutId} had no matching session — falling back to email`);
       }
@@ -231,6 +222,90 @@ async function handleEvent(event: RecurrenteEvent) {
 
     default:
       console.log(`[recurrente-webhook] Unhandled event type: ${event.type}`);
+  }
+}
+
+// ─── Activation + reconciliation ─────────────────────────────────────────────
+
+// Activates the salon behind a checkout session from a confirmed payment, once.
+// Idempotent: the same Recurrente payment reference is never recorded twice, and
+// a session already marked COMPLETED is left untouched.
+async function activateFromCheckoutSession(
+  session: {
+    id: string;
+    salonId: string;
+    plan: "MONTHLY" | "YEARLY" | "LIFETIME";
+    amountCents: number;
+    checkoutId: string;
+  },
+  payment: { amountCents: number | null; reference: string | null }
+): Promise<void> {
+  const sub = await prisma.subscription.findUnique({ where: { salonId: session.salonId } });
+  if (!sub) {
+    console.warn(
+      `[recurrente-webhook] checkout ${session.checkoutId} → salon ${session.salonId} has no subscription`
+    );
+    return;
+  }
+
+  // Never double-apply the same Recurrente payment.
+  if (payment.reference) {
+    const already = await prisma.subscriptionPayment.findFirst({
+      where: { subscriptionId: sub.id, reference: payment.reference },
+      select: { id: true },
+    });
+    if (already) {
+      await prisma.checkoutSession.update({
+        where: { id: session.id },
+        data: { status: "COMPLETED" },
+      });
+      return;
+    }
+  }
+
+  const periodMonths = session.plan === "LIFETIME" ? 999 : session.plan === "YEARLY" ? 12 : 1;
+  await prisma.subscriptionPayment.create({
+    data: {
+      subscriptionId: sub.id,
+      amountCents: payment.amountCents ?? session.amountCents,
+      periodMonths,
+      status: "APPROVED",
+      reference: payment.reference,
+      reviewedAt: new Date(),
+      reviewedBy: "recurrente-webhook",
+    },
+  });
+  await applyApprovedPayment({ subscriptionId: sub.id, periodMonths, plan: session.plan });
+  await prisma.checkoutSession.update({
+    where: { id: session.id },
+    data: { status: "COMPLETED" },
+  });
+  console.log(
+    `[recurrente-webhook] Activated salon ${session.salonId} (${session.plan}) via checkout ${session.checkoutId}`
+  );
+}
+
+// Every verified webhook triggers this sweep of recently-created checkouts still
+// marked PENDING. For each, we ask Recurrente whether it was actually paid and
+// activate it if so — so a payment reaches the right salon no matter what the
+// event body looked like (the bug that left paid salons suspended).
+async function reconcilePendingCheckouts(): Promise<void> {
+  const cutoff = new Date(Date.now() - 45 * 24 * 60 * 60 * 1000);
+  const pending = await prisma.checkoutSession.findMany({
+    where: { status: "PENDING", createdAt: { gte: cutoff } },
+    take: 50,
+  });
+  for (const session of pending) {
+    try {
+      const checkout = await getRecurrenteCheckout(session.checkoutId);
+      if (!checkout?.paid) continue;
+      await activateFromCheckoutSession(session, {
+        amountCents: checkout.amountCents,
+        reference: checkout.paymentReference,
+      });
+    } catch (err) {
+      console.error(`[recurrente-webhook] reconcile failed for ${session.checkoutId}:`, err);
+    }
   }
 }
 

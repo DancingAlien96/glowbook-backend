@@ -96,3 +96,60 @@ export async function createRecurrenteCheckout(params: {
   }
   return { id, url };
 }
+
+export type RecurrenteCheckoutInfo = {
+  id: string;
+  status: string;
+  paid: boolean;
+  amountCents: number | null;
+  paymentReference: string | null;
+  subscriptionId: string | null;
+};
+
+/**
+ * Fetches a checkout from Recurrente to learn whether it was actually paid.
+ * This is the source of truth we reconcile against when a webhook doesn't carry
+ * enough info to map a payment back to its salon (see reconcilePendingCheckouts
+ * in the webhook). Returns null on any error so the caller can skip and retry
+ * on the next webhook.
+ */
+export async function getRecurrenteCheckout(
+  checkoutId: string
+): Promise<RecurrenteCheckoutInfo | null> {
+  if (!env.RECURRENTE_SECRET_KEY) return null;
+
+  const headers: Record<string, string> = {
+    "X-SECRET-KEY": env.RECURRENTE_SECRET_KEY,
+  };
+  if (env.RECURRENTE_PUBLIC_KEY) headers["X-PUBLIC-KEY"] = env.RECURRENTE_PUBLIC_KEY;
+
+  const res = await fetch(`${API_BASE}/checkouts/${checkoutId}`, { headers }).catch(
+    () => null
+  );
+  if (!res || !res.ok) return null;
+
+  const d = (await res.json().catch(() => null)) as Record<string, unknown> | null;
+  if (!d) return null;
+
+  const status = (d.status as string) ?? "";
+  const payment = d.payment as Record<string, unknown> | undefined;
+  const paymentable = payment?.paymentable as Record<string, unknown> | undefined;
+  const amountCents =
+    typeof d.total_in_cents === "number"
+      ? (d.total_in_cents as number)
+      : typeof d.amount_in_cents === "number"
+      ? (d.amount_in_cents as number)
+      : null;
+
+  return {
+    id: (d.id as string) ?? checkoutId,
+    status,
+    paid: status === "paid",
+    amountCents,
+    paymentReference: (payment?.id as string) ?? null,
+    subscriptionId:
+      paymentable?.type === "Subscription"
+        ? ((paymentable?.id as string) ?? null)
+        : null,
+  };
+}
