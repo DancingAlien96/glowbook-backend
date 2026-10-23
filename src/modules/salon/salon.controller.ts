@@ -8,6 +8,14 @@ import { prisma } from "../../lib/prisma.js";
 import { hoursArraySchema } from "../../lib/hoursValidation.js";
 import { httpUrl } from "../../lib/urlValidation.js";
 import { NotFound } from "../../lib/errors.js";
+import {
+  daysInMonth,
+  localDateKey,
+  localMonthKey,
+  localParts,
+  safeTimeZone,
+  zonedStartOfDay,
+} from "../../lib/dates.js";
 
 // Cap the gallery generously (enough for a real portfolio) without letting
 // it grow unbounded on the public page.
@@ -433,6 +441,248 @@ salonRoutes.get(
         statusDistribution,
         weekdayOccupancy,
         clientMix: { newCount, returningCount, totalNewThisMonth: newClientsThisMonth },
+      },
+    });
+  })
+);
+
+// ─── Reportes ───────────────────────────────────────────────────────────
+// Period report for /dashboard/reports. Unlike /me/analytics (which is
+// pinned to "now"), this takes an explicit year + optional month so the
+// dueña can look back at any previous month or at a whole year. All
+// boundaries and buckets use the salon's timezone, not the server's.
+//
+// Two revenue figures are reported on purpose and labelled distinctly in
+// the UI:
+//   - revenueCents: APPROVED payments by payment date (cash actually in).
+//   - completedRevenueCents: priceCents of COMPLETED appointments by
+//     appointment date (what was billed for work done). Stylist/service
+//     breakdowns derive from this one, same as /stylists/earnings.
+const reportSchema = z.object({
+  year: z.coerce.number().int().min(2000).max(2100).optional(),
+  month: z.coerce.number().int().min(1).max(12).optional(),
+});
+
+salonRoutes.get(
+  "/me/reports",
+  validate(reportSchema, "query"),
+  asyncHandler(async (req, res) => {
+    const salonId = req.salonId!;
+    const q = req.query as unknown as z.infer<typeof reportSchema>;
+
+    const salon = await prisma.salon.findUnique({
+      where: { id: salonId },
+      select: { timezone: true, createdAt: true },
+    });
+    const tz = safeTimeZone(salon?.timezone);
+    const today = localParts(new Date(), tz);
+
+    // No params → current month. `year` alone → whole year.
+    const year = q.year ?? today.year;
+    const month = q.year ? q.month : (q.month ?? today.month);
+    const isMonth = month !== undefined;
+
+    // [from, to) for the requested period and for the one right before it,
+    // so the UI can show "vs. periodo anterior".
+    const from = isMonth ? zonedStartOfDay(year, month, 1, tz) : zonedStartOfDay(year, 1, 1, tz);
+    const to = isMonth ? zonedStartOfDay(year, month + 1, 1, tz) : zonedStartOfDay(year + 1, 1, 1, tz);
+    const prevFrom = isMonth ? zonedStartOfDay(year, month - 1, 1, tz) : zonedStartOfDay(year - 1, 1, 1, tz);
+    const prevTo = from;
+
+    const [
+      payments,
+      appointments,
+      newClients,
+      stylists,
+      services,
+      prevPayments,
+      prevCompleted,
+      prevNewClients,
+      earliestAppointment,
+    ] = await Promise.all([
+      prisma.payment.findMany({
+        where: { salonId, status: "APPROVED", createdAt: { gte: from, lt: to } },
+        select: { amountCents: true, createdAt: true, method: true },
+      }),
+      prisma.appointment.findMany({
+        where: { salonId, startAt: { gte: from, lt: to } },
+        select: {
+          status: true,
+          startAt: true,
+          stylistId: true,
+          clientId: true,
+          priceCents: true,
+          client: { select: { createdAt: true } },
+          services: { select: { serviceId: true, priceCents: true } },
+        },
+      }),
+      prisma.client.count({ where: { salonId, createdAt: { gte: from, lt: to } } }),
+      prisma.stylist.findMany({ where: { salonId }, select: { id: true, name: true } }),
+      prisma.service.findMany({ where: { salonId }, select: { id: true, name: true } }),
+      prisma.payment.aggregate({
+        _sum: { amountCents: true },
+        where: { salonId, status: "APPROVED", createdAt: { gte: prevFrom, lt: prevTo } },
+      }),
+      prisma.appointment.aggregate({
+        _sum: { priceCents: true },
+        _count: { _all: true },
+        where: { salonId, status: "COMPLETED", startAt: { gte: prevFrom, lt: prevTo } },
+      }),
+      prisma.client.count({ where: { salonId, createdAt: { gte: prevFrom, lt: prevTo } } }),
+      prisma.appointment.findFirst({
+        where: { salonId },
+        orderBy: { startAt: "asc" },
+        select: { startAt: true },
+      }),
+    ]);
+
+    // ── Summary ──────────────────────────────────────────────────────
+    const revenueCents = payments.reduce((a, p) => a + p.amountCents, 0);
+    const byStatus: Record<string, number> = {
+      PENDING: 0,
+      CONFIRMED: 0,
+      COMPLETED: 0,
+      CANCELLED: 0,
+      NO_SHOW: 0,
+    };
+    let completedRevenueCents = 0;
+    for (const a of appointments) {
+      byStatus[a.status] = (byStatus[a.status] ?? 0) + 1;
+      if (a.status === "COMPLETED") completedRevenueCents += a.priceCents;
+    }
+    const completed = byStatus.COMPLETED ?? 0;
+    const cancelled = byStatus.CANCELLED ?? 0;
+    const noShow = byStatus.NO_SHOW ?? 0;
+    const completedAppointments = appointments.filter((a) => a.status === "COMPLETED");
+
+    // ── Revenue series: per day for a month, per month for a year ───
+    const revenueSeries: { key: string; label: string; cents: number }[] = [];
+    if (isMonth) {
+      const n = daysInMonth(year, month);
+      for (let d = 1; d <= n; d++) {
+        revenueSeries.push({
+          key: `${year}-${String(month).padStart(2, "0")}-${String(d).padStart(2, "0")}`,
+          label: String(d),
+          cents: 0,
+        });
+      }
+    } else {
+      for (let m = 1; m <= 12; m++) {
+        revenueSeries.push({ key: `${year}-${String(m).padStart(2, "0")}`, label: String(m), cents: 0 });
+      }
+    }
+    const seriesIndex = new Map(revenueSeries.map((b, i) => [b.key, i] as const));
+    for (const p of payments) {
+      const key = isMonth ? localDateKey(p.createdAt, tz) : localMonthKey(p.createdAt, tz);
+      const i = seriesIndex.get(key);
+      if (i !== undefined) revenueSeries[i]!.cents += p.amountCents;
+    }
+
+    // ── Breakdown by stylist (COMPLETED) ─────────────────────────────
+    const stylistMap = new Map(stylists.map((s) => [s.id, s.name] as const));
+    const stylistAgg = new Map<string, { name: string; count: number; cents: number }>();
+    for (const a of completedAppointments) {
+      const id = a.stylistId ?? "__none__";
+      const name = a.stylistId ? stylistMap.get(a.stylistId) ?? "—" : "Sin asignar";
+      const prev = stylistAgg.get(id) ?? { name, count: 0, cents: 0 };
+      stylistAgg.set(id, { name, count: prev.count + 1, cents: prev.cents + a.priceCents });
+    }
+    const revenueByStylist = Array.from(stylistAgg.values()).sort((a, b) => b.cents - a.cents);
+
+    // ── Breakdown by service (COMPLETED, per line) ───────────────────
+    const serviceMap = new Map(services.map((s) => [s.id, s.name] as const));
+    const serviceAgg = new Map<string, { name: string; count: number; cents: number }>();
+    for (const a of completedAppointments) {
+      for (const line of a.services) {
+        const name = serviceMap.get(line.serviceId) ?? "—";
+        const prev = serviceAgg.get(line.serviceId) ?? { name, count: 0, cents: 0 };
+        serviceAgg.set(line.serviceId, {
+          name,
+          count: prev.count + 1,
+          cents: prev.cents + line.priceCents,
+        });
+      }
+    }
+    const servicesBreakdown = Array.from(serviceAgg.values()).sort(
+      (a, b) => b.count - a.count || b.cents - a.cents
+    );
+
+    // ── Status distribution + weekday occupancy (all statuses) ───────
+    const statusDistribution = Object.entries(byStatus)
+      .filter(([, count]) => count > 0)
+      .map(([status, count]) => ({ status, count }));
+
+    const weekdayOccupancy = [0, 0, 0, 0, 0, 0, 0];
+    for (const a of appointments) {
+      weekdayOccupancy[localParts(a.startAt, tz).weekday]!++;
+    }
+
+    // ── Client mix (clients actually attended) ───────────────────────
+    const seenClients = new Set<string>();
+    let newCount = 0;
+    let returningCount = 0;
+    for (const a of completedAppointments) {
+      if (seenClients.has(a.clientId)) continue;
+      seenClients.add(a.clientId);
+      if (a.client.createdAt >= from) newCount++;
+      else returningCount++;
+    }
+
+    // ── Payments by method ───────────────────────────────────────────
+    const methodAgg = new Map<string, { count: number; cents: number }>();
+    for (const p of payments) {
+      const prev = methodAgg.get(p.method) ?? { count: 0, cents: 0 };
+      methodAgg.set(p.method, { count: prev.count + 1, cents: prev.cents + p.amountCents });
+    }
+    const paymentsByMethod = Array.from(methodAgg.entries())
+      .map(([method, v]) => ({ method, ...v }))
+      .sort((a, b) => b.cents - a.cents);
+
+    // ── Years the picker should offer ────────────────────────────────
+    const firstYear = Math.min(
+      earliestAppointment ? localParts(earliestAppointment.startAt, tz).year : today.year,
+      salon ? localParts(salon.createdAt, tz).year : today.year
+    );
+    const availableYears: number[] = [];
+    for (let y = today.year; y >= firstYear; y--) availableYears.push(y);
+
+    res.json({
+      report: {
+        period: {
+          year,
+          month: month ?? null,
+          from: from.toISOString(),
+          to: to.toISOString(),
+          timezone: tz,
+        },
+        availableYears,
+        summary: {
+          revenueCents,
+          paymentsCount: payments.length,
+          completedRevenueCents,
+          appointmentsTotal: appointments.length,
+          completed,
+          cancelled,
+          noShow,
+          pending: byStatus.PENDING ?? 0,
+          confirmed: byStatus.CONFIRMED ?? 0,
+          avgTicketCents: completed > 0 ? Math.round(completedRevenueCents / completed) : 0,
+          newClients,
+          clientsServed: seenClients.size,
+        },
+        previous: {
+          revenueCents: prevPayments._sum.amountCents ?? 0,
+          completedRevenueCents: prevCompleted._sum.priceCents ?? 0,
+          completed: prevCompleted._count._all,
+          newClients: prevNewClients,
+        },
+        revenueSeries,
+        revenueByStylist,
+        services: servicesBreakdown,
+        statusDistribution,
+        weekdayOccupancy,
+        clientMix: { newCount, returningCount },
+        paymentsByMethod,
       },
     });
   })
