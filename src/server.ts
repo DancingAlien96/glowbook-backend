@@ -12,6 +12,7 @@ import { recurrenteWebhookRouter } from "./modules/webhooks/recurrente.webhook.j
 import { errorHandler, notFound } from "./middleware/error.js";
 import { startReminderJob } from "./jobs/reminders.js";
 import { startTrialReminderJob } from "./jobs/trialReminders.js";
+import { startPaymentReconcileJob } from "./jobs/paymentReconcile.js";
 
 const app = express();
 
@@ -68,6 +69,7 @@ const server = app.listen(env.PORT, () => {
   console.log(`  CORS origin: ${env.CORS_ORIGIN}`);
   startReminderJob();
   startTrialReminderJob();
+  startPaymentReconcileJob();
 });
 
 // Graceful shutdown
